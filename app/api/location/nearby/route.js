@@ -1,5 +1,8 @@
 import { users } from "../store";
 import { NextResponse } from "next/server";
+import { zones } from "@/app/location/zones";
+import { isInside } from "@/app/location/geo";
+
 
 function distance(a, b) {
   const R = 6371000;
@@ -14,6 +17,19 @@ function distance(a, b) {
 
   return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
+
+const zoneCrowd = {};
+
+for (const z of zones) zoneCrowd[z.id] = 0;
+
+for (const u of users.values()) {
+  for (const z of zones) {
+    if (isInside([u.lat, u.lng], z.polygon)) {
+      zoneCrowd[z.id]++;
+    }
+  }
+}
+
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
@@ -40,8 +56,10 @@ export async function GET(req) {
     }
   }
 
-  return NextResponse.json({
-    nearby,
-    crowdAlert: nearby.length >= 1,
-  });
+return NextResponse.json({
+  nearby,
+  crowdAlert: nearby.length >= 1,
+  zoneCrowd,
+});
+
 }

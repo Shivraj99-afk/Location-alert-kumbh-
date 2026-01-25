@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { v4 as uuid } from "uuid";
 import "leaflet/dist/leaflet.css";
+import { zones } from "./zones";
+import { isInside } from "./geo";
+
 
 const MapContainer = dynamic(
   () => import("react-leaflet").then((m) => m.MapContainer),
@@ -27,6 +30,23 @@ export default function LocationPage() {
   const [pos, setPos] = useState(null);
   const [nearby, setNearby] = useState([]);
   const [alert, setAlert] = useState(false);
+
+  const myZone = zones.find(z =>
+    isInside([pos.lat, pos.lng], z.polygon)
+  );
+
+  let safeZone = null;
+
+  if (myZone) {
+    let min = Infinity;
+
+    for (const n of myZone.neighbors) {
+      if (data.zoneCrowd[n] < min) {
+        min = data.zoneCrowd[n];
+        safeZone = n;
+      }
+    }
+  }
 
   // ✅ fix leaflet icons CLIENT ONLY
   useEffect(() => {
@@ -107,6 +127,13 @@ export default function LocationPage() {
         {nearby.map((u) => (
           <Marker key={u.id} position={[u.lat, u.lng]} />
         ))}
+
+        {safeZone && (
+          <div style={{ background: "#0a0", color: "white", padding: 10 }}>
+            Recommended direction: Move towards Zone {safeZone}
+          </div>
+        )}
+
 
         <Circle center={[pos.lat, pos.lng]} radius={50} />
       </MapContainer>
