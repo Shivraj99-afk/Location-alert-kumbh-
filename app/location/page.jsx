@@ -32,6 +32,10 @@ const Tooltip = dynamic(
   () => import("react-leaflet").then((m) => m.Tooltip),
   { ssr: false }
 );
+const Polyline = dynamic(
+  () => import("react-leaflet").then((m) => m.Polyline),
+  { ssr: false }
+);
 
 export default function LocationPage() {
   const [userId] = useState(uuid());
@@ -39,12 +43,15 @@ export default function LocationPage() {
   const [nearby, setNearby] = useState([]);
   const [zoneCrowd, setZoneCrowd] = useState({});
   const [alert, setAlert] = useState(false);
+  const [navigationPath, setNavigationPath] = useState(null);
 
   const myZone = pos ? zones.find(z =>
     isInside([pos.lat, pos.lng], z.polygon)
   ) : null;
 
   let recommendedZone = null;
+  let targetCentroid = null;
+
   if (myZone) {
     let min = Infinity;
     for (const n of myZone.neighbors) {
@@ -52,6 +59,13 @@ export default function LocationPage() {
         min = zoneCrowd[n] || 0;
         recommendedZone = zones.find(z => z.id === n);
       }
+    }
+
+    if (recommendedZone) {
+      const coords = recommendedZone.polygon;
+      const tLat = coords.reduce((sum, p) => sum + p[0], 0) / coords.length;
+      const tLng = coords.reduce((sum, p) => sum + p[1], 0) / coords.length;
+      targetCentroid = [tLat, tLng];
     }
   }
 
@@ -112,6 +126,31 @@ export default function LocationPage() {
 
     return () => clearInterval(id);
   }, [pos]);
+
+  // Fetch route when recommendation changes
+  useEffect(() => {
+    if (!pos || !recommendedZone) {
+      setNavigationPath(null);
+      return;
+    }
+
+    const fetchRoute = async () => {
+      try {
+        const url = `https://router.project-osrm.org/route/v1/walking/${pos.lng},${pos.lat};${targetCentroid[1]},${targetCentroid[0]}?overview=full&geometries=geojson`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.routes && data.routes.length > 0) {
+          const path = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+          setNavigationPath(path);
+        }
+      } catch (err) {
+        console.error("Routing error:", err);
+      }
+    };
+
+    fetchRoute();
+  }, [pos, recommendedZone?.id]);
 
   if (!pos) return <p>Detecting location...</p>;
 
@@ -181,6 +220,33 @@ export default function LocationPage() {
         {nearby.map((u) => (
           <Marker key={u.id} position={[u.lat, u.lng]} />
         ))}
+
+        {navigationPath && (
+          <>
+            <Polyline
+              positions={navigationPath}
+              pathOptions={{
+                color: "#1a73e8",
+                weight: 8,
+                opacity: 0.6,
+              }}
+            />
+            <Polyline
+              positions={navigationPath}
+              pathOptions={{
+                color: "#4285f4",
+                weight: 4,
+                opacity: 1,
+                dashArray: "1, 10"
+              }}
+            />
+            {targetCentroid && (
+              <Marker position={targetCentroid}>
+                <Tooltip permanent direction="top">🚩 Destination: {recommendedZone.name}</Tooltip>
+              </Marker>
+            )}
+          </>
+        )}
 
         <Circle center={[pos.lat, pos.lng]} radius={50} pathOptions={{ color: alert ? "red" : "blue" }} />
       </MapContainer>
