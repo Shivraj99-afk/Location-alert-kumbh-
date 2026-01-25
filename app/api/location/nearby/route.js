@@ -1,6 +1,6 @@
 import { users } from "../store";
 import { NextResponse } from "next/server";
-import { zones } from "@/app/location/zones";
+import { zones } from "@/app/location/zones/data";
 import { isInside } from "@/app/location/geo";
 
 
@@ -12,8 +12,8 @@ function distance(a, b) {
   const x =
     Math.sin(dLat / 2) ** 2 +
     Math.cos(a.lat * Math.PI / 180) *
-      Math.cos(b.lat * Math.PI / 180) *
-      Math.sin(dLng / 2) ** 2;
+    Math.cos(b.lat * Math.PI / 180) *
+    Math.sin(dLng / 2) ** 2;
 
   return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
@@ -56,10 +56,10 @@ export async function GET(req) {
     }
   }
 
-return NextResponse.json({
-  nearby,
-  crowdAlert: nearby.length >= 1,
-  zoneCrowd,
-});
+  return NextResponse.json({
+    nearby,
+    crowdAlert: nearby.length >= 1,
+    zoneCrowd,
+  });
 
 }

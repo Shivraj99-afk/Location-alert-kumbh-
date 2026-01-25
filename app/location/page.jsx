@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { v4 as uuid } from "uuid";
 import "leaflet/dist/leaflet.css";
-import { zones } from "./zones/page";
+import { zones } from "./zones/data";
 import { isInside } from "./geo";
 
 
@@ -29,11 +29,12 @@ export default function LocationPage() {
   const [userId] = useState(uuid());
   const [pos, setPos] = useState(null);
   const [nearby, setNearby] = useState([]);
+  const [zoneCrowd, setZoneCrowd] = useState({});
   const [alert, setAlert] = useState(false);
 
-  const myZone = zones.find(z =>
+  const myZone = pos ? zones.find(z =>
     isInside([pos.lat, pos.lng], z.polygon)
-  );
+  ) : null;
 
   let safeZone = null;
 
@@ -41,8 +42,8 @@ export default function LocationPage() {
     let min = Infinity;
 
     for (const n of myZone.neighbors) {
-      if (data.zoneCrowd[n] < min) {
-        min = data.zoneCrowd[n];
+      if (zoneCrowd[n] < min) {
+        min = zoneCrowd[n];
         safeZone = n;
       }
     }
@@ -99,6 +100,7 @@ export default function LocationPage() {
 
       const data = await res.json();
       setNearby(data.nearby);
+      setZoneCrowd(data.zoneCrowd);
       setAlert(data.crowdAlert);
     }, 5000);
 
