@@ -24,6 +24,14 @@ const Circle = dynamic(
   () => import("react-leaflet").then((m) => m.Circle),
   { ssr: false }
 );
+const Polygon = dynamic(
+  () => import("react-leaflet").then((m) => m.Polygon),
+  { ssr: false }
+);
+const Tooltip = dynamic(
+  () => import("react-leaflet").then((m) => m.Tooltip),
+  { ssr: false }
+);
 
 export default function LocationPage() {
   const [userId] = useState(uuid());
@@ -36,15 +44,13 @@ export default function LocationPage() {
     isInside([pos.lat, pos.lng], z.polygon)
   ) : null;
 
-  let safeZone = null;
-
+  let recommendedZone = null;
   if (myZone) {
     let min = Infinity;
-
     for (const n of myZone.neighbors) {
-      if (zoneCrowd[n] < min) {
-        min = zoneCrowd[n];
-        safeZone = n;
+      if ((zoneCrowd[n] || 0) < min) {
+        min = zoneCrowd[n] || 0;
+        recommendedZone = zones.find(z => z.id === n);
       }
     }
   }
@@ -110,19 +116,65 @@ export default function LocationPage() {
   if (!pos) return <p>Detecting location...</p>;
 
   return (
-    <div>
+    <div style={{ position: "relative" }}>
       {alert && (
-        <div style={{ background: "red", color: "white", padding: 10 }}>
-          Crowd detected within 50 meters
+        <div style={{
+          position: "absolute",
+          top: 10,
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 1000,
+          background: "rgba(255, 0, 0, 0.9)",
+          color: "white",
+          padding: "10px 20px",
+          borderRadius: "8px",
+          fontWeight: "bold",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.3)"
+        }}>
+          ⚠️ Crowd detected within 50 meters
+        </div>
+      )}
+
+      {recommendedZone && (
+        <div style={{
+          position: "absolute",
+          bottom: 20,
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 1000,
+          background: "rgba(0, 170, 0, 0.9)",
+          color: "white",
+          padding: "10px 20px",
+          borderRadius: "8px",
+          fontWeight: "bold",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.3)"
+        }}>
+          ✅ Recommended: Move towards {recommendedZone.name}
         </div>
       )}
 
       <MapContainer
         center={[pos.lat, pos.lng]}
         zoom={18}
-        style={{ height: "90vh" }}
+        style={{ height: "100vh", width: "100%" }}
       >
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+
+        {zones.map((z) => (
+          <Polygon
+            key={z.id}
+            positions={z.polygon}
+            pathOptions={{
+              color: z.id === myZone?.id ? "#ff4444" : z.id === recommendedZone?.id ? "#00c851" : "#33b5e5",
+              fillOpacity: 0.3,
+              weight: 2
+            }}
+          >
+            <Tooltip permanent direction="center" className="zone-tooltip">
+              {z.name} ({zoneCrowd[z.id] || 0})
+            </Tooltip>
+          </Polygon>
+        ))}
 
         <Marker position={[pos.lat, pos.lng]} />
 
@@ -130,14 +182,7 @@ export default function LocationPage() {
           <Marker key={u.id} position={[u.lat, u.lng]} />
         ))}
 
-        {safeZone && (
-          <div style={{ background: "#0a0", color: "white", padding: 10 }}>
-            Recommended direction: Move towards Zone {safeZone}
-          </div>
-        )}
-
-
-        <Circle center={[pos.lat, pos.lng]} radius={50} />
+        <Circle center={[pos.lat, pos.lng]} radius={50} pathOptions={{ color: alert ? "red" : "blue" }} />
       </MapContainer>
     </div>
   );
