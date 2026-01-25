@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { v4 as uuid } from "uuid";
 import "leaflet/dist/leaflet.css";
-import { zones } from "./zones";
+import { zones } from "./zones/page";
 import { isInside } from "./geo";
 
 
