@@ -1,7 +1,7 @@
 "use client";
 
 import { MapContainer, TileLayer, Polygon, Marker } from "react-leaflet";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -83,6 +83,11 @@ const crowdLevels = {
 export default function SectorMapView() {
     const [selectedSectionId, setSelectedSectionId] = useState(null);
     const [sectionCrowd, setSectionCrowd] = useState({});
+    const [image, setImage] = useState(null);
+    const [analyzing, setAnalyzing] = useState(false);
+    const [detectedLevel, setDetectedLevel] = useState(null);
+    const [success, setSuccess] = useState(false);
+    const fileInputRef = useRef(null);
 
     // Fix leaflet icons
     useEffect(() => {
@@ -116,27 +121,76 @@ export default function SectorMapView() {
 
     const handleSectionClick = (id) => {
         setSelectedSectionId(id);
+        setImage(null);
+        setDetectedLevel(null);
+        setSuccess(false);
     };
 
-    const handleCrowdUpdate = async (level) => {
-        if (selectedSectionId) {
-            setSectionCrowd(prev => ({ ...prev, [selectedSectionId]: level }));
+    const handleFileChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
 
-            // Call API
-            try {
-                await fetch("/api/crowd/update", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        sectionId: selectedSectionId,
-                        level: level,
-                        timestamp: Date.now()
-                    })
-                });
-            } catch (err) {
-                console.error("Failed to update crowd:", err);
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            const base64 = reader.result;
+            setImage(base64);
+            analyzeImage(base64);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const analyzeImage = async (base64) => {
+        setAnalyzing(true);
+        setDetectedLevel(null);
+        try {
+            const res = await fetch("/api/crowd/analyze", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ image: base64 })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setDetectedLevel(data.level);
+            } else {
+                alert("AI Analysis failed: " + data.error);
             }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setAnalyzing(false);
         }
+    };
+
+    const submitReport = async () => {
+        if (!selectedSectionId || !detectedLevel) return;
+
+        try {
+            const res = await fetch("/api/crowd/update", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    sectionId: selectedSectionId,
+                    level: detectedLevel,
+                    timestamp: Date.now()
+                })
+            });
+            if (res.ok) {
+                setSuccess(true);
+                setSectionCrowd(prev => ({ ...prev, [selectedSectionId]: detectedLevel }));
+                setTimeout(() => {
+                    handleClose();
+                }, 2000);
+            }
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleClose = () => {
+        setSelectedSectionId(null);
+        setImage(null);
+        setDetectedLevel(null);
+        setSuccess(false);
     };
 
     const currentSection = gridSections.find(s => s.id === selectedSectionId);
@@ -169,7 +223,7 @@ export default function SectorMapView() {
                             key={section.id}
                             positions={section.polygon}
                             pathOptions={{
-                                color: isSelected ? "yellow" : "white",
+                                color: isSelected ? "#3b82f6" : "white",
                                 weight: isSelected ? 3 : 1,
                                 fillColor: style.fillColor,
                                 fillOpacity: isSelected ? 0.7 : 0.45,
@@ -185,49 +239,89 @@ export default function SectorMapView() {
             </MapContainer>
 
             {selectedSectionId && (
-                <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-[1000] bg-white p-6 rounded-2xl shadow-2xl border border-gray-200 w-[340px]">
-                    <div className="flex justify-between items-center mb-4">
+                <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-[1000] bg-white p-6 rounded-[2rem] shadow-2xl border border-gray-100 w-[90%] max-w-[380px] animate-in slide-in-from-bottom-5">
+                    <div className="flex justify-between items-center mb-6">
                         <div>
-                            <h3 className="text-xl font-extrabold text-gray-900">{currentSection?.name}</h3>
-                            <p className="text-xs text-gray-500">Ramkund Bathing Ghat Area</p>
+                            <h3 className="text-xl font-black text-gray-900 leading-none">{currentSection?.name}</h3>
+                            <p className="text-[10px] text-blue-500 font-bold uppercase tracking-widest mt-1">AI Verified Reporting</p>
                         </div>
                         <button
-                            onClick={() => setSelectedSectionId(null)}
+                            onClick={handleClose}
                             className="p-2 bg-gray-50 rounded-full hover:bg-gray-100 transition-colors text-black"
                         >
                             ✕
                         </button>
                     </div>
 
-                    <div className="space-y-4">
-                        <p className="text-sm font-semibold text-gray-700">How&apos;s the crowd here?</p>
-                        <div className="grid grid-cols-3 gap-3">
-                            {[1, 2, 3].map(level => (
-                                <button
-                                    key={level}
-                                    onClick={() => handleCrowdUpdate(level)}
-                                    className={`flex flex-col items-center justify-center py-3 rounded-xl border-2 transition-all ${sectionCrowd[selectedSectionId] === level
-                                        ? `border-gray-900 ${level === 1 ? 'bg-green-500' : level === 2 ? 'bg-yellow-400' : 'bg-red-500'} text-white`
-                                        : "border-gray-100 bg-gray-50 text-gray-600 hover:border-gray-300"
-                                        }`}
-                                >
-                                    <span className="text-sm font-bold">{crowdLevels[level].label}</span>
-                                </button>
-                            ))}
+                    {!image ? (
+                        <div
+                            onClick={() => fileInputRef.current?.click()}
+                            className="aspect-video bg-gray-50 rounded-2x border-2 border-dashed border-gray-200 hover:border-blue-400 transition-all flex flex-col items-center justify-center cursor-pointer group mb-2"
+                        >
+                            <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                            </div>
+                            <span className="text-sm font-bold text-gray-600">Upload Crowd Photo</span>
+                            <span className="text-[10px] text-gray-400 uppercase font-black mt-1">For AI Analysis</span>
+                            <input
+                                type="file"
+                                className="hidden"
+                                ref={fileInputRef}
+                                accept="image/*"
+                                capture="environment"
+                                onChange={handleFileChange}
+                            />
                         </div>
-                    </div>
+                    ) : (
+                        <div className="space-y-4">
+                            <div className="relative aspect-video rounded-2xl overflow-hidden ring-4 ring-gray-100">
+                                <img src={image} className="w-full h-full object-cover" />
+                                {analyzing && (
+                                    <div className="absolute inset-0 bg-white/80 flex flex-col items-center justify-center backdrop-blur-sm">
+                                        <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+                                        <span className="text-blue-600 font-black text-[10px] uppercase tracking-widest">Scanning...</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {detectedLevel && !analyzing && (
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between bg-gray-50 p-3 rounded-xl">
+                                        <span className="text-xs font-bold text-gray-500 uppercase tracking-tight">AI Detected</span>
+                                        <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase ${detectedLevel === 1 ? 'bg-green-100 text-green-600' :
+                                                detectedLevel === 2 ? 'bg-yellow-100 text-yellow-600' :
+                                                    'bg-red-100 text-red-600'
+                                            }`}>
+                                            {crowdLevels[detectedLevel].label} Density
+                                        </span>
+                                    </div>
+
+                                    <button
+                                        onClick={submitReport}
+                                        disabled={success}
+                                        className={`w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest transition-all ${success
+                                                ? 'bg-green-500 text-white'
+                                                : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200'
+                                            }`}
+                                    >
+                                        {success ? '✓ Verified & Reported' : 'Confirm Forecast'}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
             )}
 
             {!selectedSectionId && (
                 <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-[1000] bg-white px-6 py-3 rounded-full shadow-xl border border-gray-100 flex items-center gap-3 animate-bounce">
                     <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
-                    <p className="text-sm font-bold text-gray-800">Tap a square to report density</p>
+                    <p className="text-sm font-bold text-gray-800">Tap a sector to start AI verification</p>
                 </div>
             )}
 
-            <a href="/location" className="absolute top-6 right-6 z-[1000] bg-white p-3 rounded-full shadow-lg border border-gray-100 font-bold text-blue-600">
-                Go to GPS Tracker →
+            <a href="/location" className="absolute top-6 right-6 z-[1000] bg-white p-3 rounded-full shadow-lg border border-gray-100 font-bold text-blue-600 hover:scale-105 transition-transform">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
             </a>
         </div>
     );
