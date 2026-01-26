@@ -88,20 +88,41 @@ export async function GET(req) {
   const isCrowded = (gridCrowd[myCell] || 0) > settings.crowdLimit;
 
   if ((isCrowded && myRank > settings.crowdLimit) || forceSafePath) {
-    // Find candidate cells (count < limit)
-    const candidates = gridSnippet
-      .filter(cell => cell.id !== myCell && cell.count < settings.crowdLimit)
-      .sort((a, b) => {
-        // Sort by load (current users + current reservations)
-        const loadA = a.count + Array.from(reservations.keys()).filter(k => k.endsWith(a.id)).length;
-        const loadB = b.count + Array.from(reservations.keys()).filter(k => k.endsWith(b.id)).length;
-        return loadA - loadB;
-      });
+    // 1. STICKY LOGIC: Reuse existing reservation to avoid flickering
+    const myKey = Array.from(reservations.keys()).find(k => k.startsWith(`${userId}:`));
+    if (myKey) {
+      const rid = myKey.split(":")[1];
+      const rCell = gridSnippet.find(c => c.id === rid);
+      if (rCell && rCell.count < settings.crowdLimit) {
+        recommendation = rCell;
+        reservations.set(myKey, now); // Refresh timestamp
+      }
+    }
 
-    if (candidates.length > 0) {
-      // Pick best candidate and reserve it for this user for 10s
-      recommendation = candidates[0];
-      reservations.set(`${userId}:${recommendation.id}`, now);
+    // 2. SEARCH LOGIC: If no sticky or sticky is now hazardous
+    if (!recommendation) {
+      const candidates = gridSnippet
+        .filter(cell => cell.id !== myCell && cell.count < settings.crowdLimit)
+        .sort((a, b) => {
+          // Sort by load (current users + current reservations)
+          const loadA = a.count + Array.from(reservations.keys()).filter(k => k.endsWith(a.id)).length;
+          const loadB = b.count + Array.from(reservations.keys()).filter(k => k.endsWith(b.id)).length;
+          return loadA - loadB;
+        });
+
+      if (candidates.length > 0) {
+        recommendation = candidates[0];
+        // Clear any old ones for this user
+        for (const k of reservations.keys()) {
+          if (k.startsWith(`${userId}:`)) reservations.delete(k);
+        }
+        reservations.set(`${userId}:${recommendation.id}`, now);
+      }
+    }
+  } else {
+    // Clear reservation if no longer needed
+    for (const k of reservations.keys()) {
+      if (k.startsWith(`${userId}:`)) reservations.delete(k);
     }
   }
 

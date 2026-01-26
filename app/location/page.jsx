@@ -149,7 +149,7 @@ export default function LocationPage() {
       }
     };
     fetchRoute();
-  }, [pos, recommendedCell?.id]);
+  }, [recommendedCell?.id]); // Only re-fetch if destination changes
 
   if (!pos) {
     return (
