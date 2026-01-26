@@ -11,7 +11,7 @@ export async function POST(req) {
             return NextResponse.json({ error: "No image provided" }, { status: 400 });
         }
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
         const prompt = `Analyze this image of a crowd and determine the density level. 
         Respond with exactly ONE word from this list: "LOW", "MEDIUM", or "HIGH".
