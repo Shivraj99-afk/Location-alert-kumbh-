@@ -75,7 +75,7 @@ export default function LiveCrowdPage() {
                 );
 
                 const data = await res.json();
-                setAlert(data.crowdAlert);
+                setAlert(data.alert);
             } catch (err) {
                 console.error("Failed to sync live crowd data:", err);
             }

@@ -1,8 +1,7 @@
 import { users } from "../store";
 import { NextResponse } from "next/server";
-import { zones } from "@/app/location/zones/data";
-import { isInside } from "@/app/location/geo";
 
+import { LAT_STEP, LNG_STEP, getCellId } from "@/lib/grid";
 
 function distance(a, b) {
   const R = 6371000;
@@ -18,6 +17,7 @@ function distance(a, b) {
   return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
+// getCellId imported from @/lib/grid
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
@@ -26,53 +26,71 @@ export async function GET(req) {
   const lat = parseFloat(searchParams.get("lat"));
   const lng = parseFloat(searchParams.get("lng"));
 
-  const me = { lat, lng };
-  const nearby = [];
+  if (isNaN(lat) || isNaN(lng)) {
+    return NextResponse.json({ error: "Invalid location" }, { status: 400 });
+  }
 
-  // 1. Calculate Real-Time Crowd (Micro)
-  const realTimeZoneCrowd = {};
-  for (const z of zones) realTimeZoneCrowd[z.id] = 0;
+  const mePos = { lat, lng };
+  const nearby = [];
+  const gridCrowd = {};
+
+  // Get current timestamp for cleanup
+  const now = Date.now();
 
   for (const [id, u] of users) {
-    // Cleanup old users
-    if (Date.now() - u.time > 20000) {
+    // 1. Cleanup old users (> 30s)
+    if (now - u.time > 30000) {
       users.delete(id);
       continue;
     }
 
-    // Count in zones
-    for (const z of zones) {
-      if (isInside([u.lat, u.lng], z.polygon)) {
-        realTimeZoneCrowd[z.id]++;
+    // 2. Bin into Global Grid
+    const cellId = getCellId(u.lat, u.lng);
+    gridCrowd[cellId] = (gridCrowd[cellId] || 0) + 1;
+
+    // 3. Check for nearby markers (for visual map)
+    if (id !== userId) {
+      const d = distance(mePos, u);
+      if (d <= 500) { // Return markers within 500m
+        nearby.push({ id, lat: u.lat, lng: u.lng });
       }
-    }
-
-    // Skip myself for nearby list
-    if (id === userId) continue;
-
-    const d = distance(me, u);
-    if (d <= 50) {
-      nearby.push({ id, ...u });
     }
   }
 
-  // 3. Determine User Rank (Arrival Order) in Current Zone
-  let myRank = 1;
-  const allUsers = Array.from(users.entries()).map(([id, u]) => ({ id, ...u }));
-  const meData = allUsers.find(u => u.id === userId);
+  // 4. Determine Arrival Rank in the current cell
+  const myCell = getCellId(lat, lng);
+  const cellUsers = Array.from(users.entries())
+    .filter(([_, u]) => getCellId(u.lat, u.lng) === myCell)
+    .sort((a, b) => a[1].joinTime - b[1].joinTime);
 
-  if (meData && meData.currentZone) {
-    const zoneResidents = allUsers
-      .filter(u => u.currentZone === meData.currentZone)
-      .sort((a, b) => a.joinTime - b.joinTime);
+  const myRank = cellUsers.findIndex(([id, _]) => id === userId) + 1;
 
-    myRank = zoneResidents.findIndex(u => u.id === userId) + 1;
+  // 5. Generate a nearby grid snippet (5x5) for the client's easy rendering
+  // This allows the client to see immediate neighbors even if the app is used anywhere
+  const gridSnippet = [];
+  const myRLat = Math.floor(lat / LAT_STEP);
+  const myRLng = Math.floor(lng / LNG_STEP);
+
+  for (let dr = -2; dr <= 2; dr++) {
+    for (let dc = -2; dc <= 2; dc++) {
+      const r = myRLat + dr;
+      const c = myRLng + dc;
+      const id = `${r},${c}`;
+      gridSnippet.push({
+        id,
+        lat: r * LAT_STEP,
+        lng: c * LNG_STEP,
+        count: gridCrowd[id] || 0,
+        isMe: id === myCell
+      });
+    }
   }
 
   return NextResponse.json({
     nearby,
-    crowdAlert: nearby.length >= 3, // Alert if > 3 people are within 50m (Micro alert)
-    zoneCrowd: realTimeZoneCrowd,   // App users only
-    myRank,                         // User's order in the zone
+    myRank: myRank || 1,
+    myCell,
+    gridCrowd: gridSnippet,
+    alert: (gridCrowd[myCell] || 0) > 1 && myRank > 1
   });
 }

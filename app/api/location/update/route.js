@@ -1,17 +1,16 @@
 import { users } from "../store";
 import { NextResponse } from "next/server";
-import { zones } from "@/app/location/zones/data";
-import { isInside } from "@/app/location/geo";
+import { getCellId } from "@/lib/grid";
 
 export async function POST(req) {
   const { userId, lat, lng } = await req.json();
 
   const prev = users.get(userId);
-  const currentZone = zones.find(z => isInside([lat, lng], z.polygon))?.id || null;
+  const cellId = getCellId(lat, lng);
 
-  // If the user is in a new zone, reset their joinTime
+  // If the user is in a new cell, reset their joinTime
   let joinTime = prev?.joinTime || Date.now();
-  if (prev && prev.currentZone !== currentZone) {
+  if (prev && prev.cellId !== cellId) {
     joinTime = Date.now();
   } else if (!prev) {
     joinTime = Date.now();
@@ -22,7 +21,7 @@ export async function POST(req) {
     lng,
     time: Date.now(),
     joinTime,
-    currentZone
+    cellId
   });
 
   return NextResponse.json({ ok: true });
