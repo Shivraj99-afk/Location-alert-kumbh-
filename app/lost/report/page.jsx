@@ -38,13 +38,20 @@ export default function ReportLostPage() {
                 const filePath = `lost/${fileName}`;
 
                 const { error: uploadError } = await supabase.storage
-                    .from("lost-found-photos")
-                    .upload(filePath, photo);
+                    .from("lost_found_bucket")
+                    .upload(filePath, photo, {
+                        cacheControl: '3600',
+                        upsert: false,
+                        contentType: photo.type
+                    });
 
-                if (uploadError) throw uploadError;
+                if (uploadError) {
+                    console.error("Supabase Upload Error:", uploadError);
+                    throw new Error(`Upload failed: ${uploadError.message}`);
+                }
 
                 const { data: { publicUrl } } = supabase.storage
-                    .from("lost-found-photos")
+                    .from("lost_found_bucket")
                     .getPublicUrl(filePath);
 
                 photoUrl = publicUrl;

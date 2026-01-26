@@ -71,7 +71,11 @@ export default function VolunteerPage() {
             updated_at: new Date().toISOString()
         });
 
-        if (!error) setActive(!active);
+        if (error) {
+            alert("Error: " + error.message);
+        } else {
+            setActive(!active);
+        }
         setSaving(false);
     };
 

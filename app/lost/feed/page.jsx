@@ -9,6 +9,8 @@ export default function LostFeedPage() {
     const [reports, setReports] = useState([]);
     const [volunteers, setVolunteers] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState(null);
+    const [rowCount, setRowCount] = useState(0); // Diagnostic
     const [helpMessage, setHelpMessage] = useState("");
     const [activeReportId, setActiveReportId] = useState(null);
 
@@ -25,19 +27,45 @@ export default function LostFeedPage() {
     };
 
     const fetchReports = async () => {
-        const { data: reportsData } = await supabase
-            .from("lost_reports")
-            .select(`*, help_updates (*)`)
-            .order("created_at", { ascending: false });
+        setFetchError(null);
+        try {
+            console.log("Diagnostic: Starting fetch...");
 
-        const { data: volData } = await supabase
-            .from("volunteers")
-            .select("*")
-            .eq("active", true);
+            // 1. Fetch Reports
+            const { data: reportsData, error: reportsError } = await supabase
+                .from("lost_reports")
+                .select("*")
+                .order("created_at", { ascending: false });
 
-        if (reportsData) setReports(reportsData);
-        if (volData) setVolunteers(volData);
-        setLoading(false);
+            if (reportsError) throw reportsError;
+
+            console.log("Diagnostic: Reports fetched:", reportsData?.length);
+            setRowCount(reportsData?.length || 0);
+
+            // 2. Fetch help updates
+            const { data: helpData } = await supabase
+                .from("help_updates")
+                .select("*");
+
+            const combinedData = (reportsData || []).map(r => ({
+                ...r,
+                help_updates: helpData?.filter(h => h.report_id === r.id) || []
+            }));
+
+            // 3. Fetch Volunteers
+            const { data: volData } = await supabase
+                .from("volunteers")
+                .select("*")
+                .eq("active", true);
+
+            setReports(combinedData);
+            setVolunteers(volData || []);
+        } catch (err) {
+            console.error("Diagnostic: Fetch Error:", err);
+            setFetchError(err.message);
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
@@ -89,11 +117,20 @@ export default function LostFeedPage() {
     return (
         <div className="max-w-xl mx-auto p-4 bg-gray-50 min-h-screen">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">Community Safety</h1>
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Community Safety</h1>
+                    <p className="text-xs text-gray-400">Database rows found: {rowCount}</p>
+                </div>
                 <a href="/lost/report" className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold text-sm">
                     Report Lost
                 </a>
             </div>
+
+            {fetchError && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-mono">
+                    <strong>Database Error:</strong> {fetchError}
+                </div>
+            )}
 
             <div className="space-y-6">
                 {reports.map((report) => (
@@ -146,16 +183,33 @@ export default function LostFeedPage() {
                                 </div>
                             )}
 
-                            {/* Help Updates Section */}
+                            {/* Help Updates (Whereabouts) Section */}
                             <div className="border-t border-gray-50 pt-4 mt-4">
-                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Updates</h3>
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Community Sightings / Updates</h3>
                                 <div className="space-y-3 mb-4">
-                                    {report.help_updates?.map((update) => (
-                                        <div key={update.id} className="text-sm flex gap-2">
-                                            <span className="font-bold text-blue-600">Helper:</span>
-                                            <span className="text-gray-600 font-medium">{update.message}</span>
-                                        </div>
-                                    ))}
+                                    {report.help_updates?.map((update) => {
+                                        const volunteer = volunteers.find(v => v.id === update.helper_id);
+                                        return (
+                                            <div key={update.id} className="text-sm border-l-2 border-blue-100 pl-3 py-1">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${volunteer ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                                                        }`}>
+                                                        {volunteer ? 'Verified Volunteer' : 'Community Member'}
+                                                    </span>
+                                                    <span className="font-bold text-gray-900 text-xs">
+                                                        {volunteer ? volunteer.display_name : 'Anonymous'}
+                                                    </span>
+                                                    <span className="text-[10px] text-gray-400">
+                                                        {new Date(update.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+                                                </div>
+                                                <p className="text-gray-600">{update.message}</p>
+                                            </div>
+                                        );
+                                    })}
+                                    {(!report.help_updates || report.help_updates.length === 0) && (
+                                        <p className="text-xs text-gray-400 italic">No updates yet. Share info if you've seen them.</p>
+                                    )}
                                 </div>
 
                                 {report.status === 'lost' && (
@@ -166,14 +220,14 @@ export default function LostFeedPage() {
                                                     autoFocus
                                                     value={helpMessage}
                                                     onChange={(e) => setHelpMessage(e.target.value)}
-                                                    placeholder="Type an update..."
+                                                    placeholder="e.g. Saw them near the main entrance..."
                                                     className="flex-1 px-3 py-2 bg-gray-100 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                                                 />
                                                 <button
                                                     onClick={() => handleHelp(report.id)}
                                                     className="bg-blue-600 text-white text-xs font-bold px-3 py-2 rounded-lg"
                                                 >
-                                                    Send
+                                                    Post Update
                                                 </button>
                                                 <button
                                                     onClick={() => setActiveReportId(null)}
@@ -186,15 +240,15 @@ export default function LostFeedPage() {
                                             <>
                                                 <button
                                                     onClick={() => setActiveReportId(report.id)}
-                                                    className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 rounded-xl text-sm transition-colors"
+                                                    className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold py-2 rounded-xl text-sm transition-colors border border-blue-100"
                                                 >
-                                                    I have info
+                                                    📢 Update Whereabouts
                                                 </button>
                                                 <button
                                                     onClick={() => markAsFound(report.id, report.last_seen_zone)}
                                                     className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 rounded-xl text-sm shadow-sm transition-colors"
                                                 >
-                                                    Mark as Found
+                                                    ✅ Mark as Found
                                                 </button>
                                             </>
                                         )}

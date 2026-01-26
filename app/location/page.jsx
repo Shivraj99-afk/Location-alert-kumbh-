@@ -197,6 +197,30 @@ export default function LocationPage() {
         }}>
           🤝 Volunteer
         </a>
+        <a href="/sector-map" style={{
+          background: "white",
+          color: "#d97706",
+          padding: "8px 16px",
+          borderRadius: "8px",
+          fontWeight: "bold",
+          fontSize: "14px",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+          textDecoration: "none"
+        }}>
+          🗺️ Sector Map
+        </a>
+        <a href="/live-crowd" style={{
+          background: "white",
+          color: "#dc2626",
+          padding: "8px 16px",
+          borderRadius: "8px",
+          fontWeight: "bold",
+          fontSize: "14px",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+          textDecoration: "none"
+        }}>
+          🔴 Live Grid
+        </a>
       </div >
 
       {/* Visual Indicator of Hybrid System */}
