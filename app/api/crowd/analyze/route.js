@@ -17,8 +17,7 @@ export async function POST(req) {
         Respond with exactly ONE word from this list: "LOW", "MEDIUM", or "HIGH".
         - "LOW": Less than 50 people.
         - "MEDIUM": Between 50 and 100 people.
-        - "HIGH": More than 100 people.
-        If the image does not show a crowd or is unclear, default to "LOW".`;
+        - "HIGH": More than 100 people.`;
 
         // The image data is base64, need to strip the prefix if it exists
         const base64Data = image.split(",")[1] || image;
