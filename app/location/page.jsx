@@ -54,7 +54,8 @@ export default function LocationPage() {
   let targetCentroid = null;
 
   // Use SATELLITE data for strategic recommendation (Macro layer)
-  if (myZone) {
+  // ONLY if the current zone has more than 1 person (crowd starting to form)
+  if (myZone && (zoneCrowd[myZone.id] > 1)) {
     let min = Infinity;
     for (const n of myZone.neighbors) {
       // Use satelliteCrowd for decision making
