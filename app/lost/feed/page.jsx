@@ -68,18 +68,30 @@ export default function LostFeedPage() {
         }
     };
 
+    const [lastSync, setLastSync] = useState(new Date());
+
     useEffect(() => {
         fetchReports();
+        setLastSync(new Date());
 
         // Real-time updates
         const channel = supabase
             .channel("lost_updates")
-            .on("postgres_changes", { event: "*", schema: "public", table: "lost_reports" }, fetchReports)
-            .on("postgres_changes", { event: "*", schema: "public", table: "help_updates" }, fetchReports)
-            .on("postgres_changes", { event: "*", schema: "public", table: "volunteers" }, fetchReports)
+            .on("postgres_changes", { event: "*", schema: "public", table: "lost_reports" }, () => { fetchReports(); setLastSync(new Date()); })
+            .on("postgres_changes", { event: "*", schema: "public", table: "help_updates" }, () => { fetchReports(); setLastSync(new Date()); })
+            .on("postgres_changes", { event: "*", schema: "public", table: "volunteers" }, () => { fetchReports(); setLastSync(new Date()); })
             .subscribe();
 
-        return () => supabase.removeChannel(channel);
+        // Fallback Auto-refresh every 15 seconds
+        const refreshId = setInterval(() => {
+            fetchReports();
+            setLastSync(new Date());
+        }, 15000);
+
+        return () => {
+            supabase.removeChannel(channel);
+            clearInterval(refreshId);
+        };
     }, []);
 
     const handleHelp = async (reportId) => {
@@ -119,7 +131,12 @@ export default function LostFeedPage() {
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Community Safety</h1>
-                    <p className="text-xs text-gray-400">Database rows found: {rowCount}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                            Auto-refresh: ACTIVE (15s) • Last: {lastSync.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </p>
+                    </div>
                 </div>
                 <a href="/lost/report" className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold text-sm">
                     Report Lost

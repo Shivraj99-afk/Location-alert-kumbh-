@@ -74,6 +74,8 @@ export default function LocationPage() {
     }
   }, []);
 
+  const [lastSync, setLastSync] = useState(new Date());
+
   // Sync with Backend
   useEffect(() => {
     if (!pos) return;
@@ -95,6 +97,7 @@ export default function LocationPage() {
         setMyCell(data.myCell);
         setMyRank(data.myRank || 1);
         setAlert(data.alert);
+        setLastSync(new Date());
       } catch (err) {
         console.error("Sync error:", err);
       }
@@ -180,8 +183,7 @@ export default function LocationPage() {
           </div>
           <div className="space-y-1 opacity-80">
             <div>ID: {userId.slice(0, 8)}</div>
-            <div>LAT: {pos.lat.toFixed(5)}</div>
-            <div>LNG: {pos.lng.toFixed(5)}</div>
+            <div>SYNC: {lastSync.toLocaleTimeString([], { second: '2-digit' })}s</div>
             <div className="text-yellow-400 font-bold border-t border-green-500/20 mt-1 pt-1">
               ENTRY ORDER: #{myRank}
             </div>
