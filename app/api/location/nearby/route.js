@@ -18,18 +18,6 @@ function distance(a, b) {
   return 2 * R * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
-const zoneCrowd = {};
-
-for (const z of zones) zoneCrowd[z.id] = 0;
-
-for (const u of users.values()) {
-  for (const z of zones) {
-    if (isInside([u.lat, u.lng], z.polygon)) {
-      zoneCrowd[z.id]++;
-    }
-  }
-}
-
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
@@ -41,25 +29,51 @@ export async function GET(req) {
   const me = { lat, lng };
   const nearby = [];
 
-  for (const [id, u] of users) {
-    if (id === userId) continue;
+  // 1. Calculate Real-Time Crowd (Micro)
+  const realTimeZoneCrowd = {};
+  for (const z of zones) realTimeZoneCrowd[z.id] = 0;
 
+  for (const [id, u] of users) {
+    // Cleanup old users
     if (Date.now() - u.time > 20000) {
       users.delete(id);
       continue;
     }
 
-    const d = distance(me, u);
+    // Count in zones
+    for (const z of zones) {
+      if (isInside([u.lat, u.lng], z.polygon)) {
+        realTimeZoneCrowd[z.id]++;
+      }
+    }
 
+    // Skip myself for nearby list
+    if (id === userId) continue;
+
+    const d = distance(me, u);
     if (d <= 50) {
       nearby.push({ id, ...u });
     }
   }
 
+  // 2. Simulate Satellite Data (Macro) - The "Strategic" View
+  // We simulate much higher numbers because satellites see EVERYONE, not just app users.
+  const satelliteCrowd = {};
+  for (const z of zones) {
+    // Base density + some fluctuation to look "live"
+    // We force Zone B to be very crowded to demonstrate rerouting if the user is near it
+    let base = 1200;
+    if (z.id === "A") base = 4500; // Very crowded
+    if (z.id === "B") base = 800;  // Moderate
+    if (z.id === "C") base = 150;  // Open
+
+    satelliteCrowd[z.id] = base + Math.floor(Math.random() * 50);
+  }
+
   return NextResponse.json({
     nearby,
-    crowdAlert: nearby.length >= 1,
-    zoneCrowd,
+    crowdAlert: nearby.length >= 3, // Alert if > 3 people are within 50m (Micro alert)
+    zoneCrowd: realTimeZoneCrowd,   // App users only
+    satelliteCrowd,                 // "Satellite" estimates
   });
-
 }

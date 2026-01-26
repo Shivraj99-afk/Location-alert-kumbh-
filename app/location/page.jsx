@@ -42,6 +42,7 @@ export default function LocationPage() {
   const [pos, setPos] = useState(null);
   const [nearby, setNearby] = useState([]);
   const [zoneCrowd, setZoneCrowd] = useState({});
+  const [satelliteCrowd, setSatelliteCrowd] = useState({}); // New Macro Data
   const [alert, setAlert] = useState(false);
   const [navigationPath, setNavigationPath] = useState(null);
 
@@ -52,11 +53,14 @@ export default function LocationPage() {
   let recommendedZone = null;
   let targetCentroid = null;
 
+  // Use SATELLITE data for strategic recommendation (Macro layer)
   if (myZone) {
     let min = Infinity;
     for (const n of myZone.neighbors) {
-      if ((zoneCrowd[n] || 0) < min) {
-        min = zoneCrowd[n] || 0;
+      // Use satelliteCrowd for decision making
+      const density = satelliteCrowd[n] || 0;
+      if (density < min) {
+        min = density;
         recommendedZone = zones.find(z => z.id === n);
       }
     }
@@ -120,7 +124,8 @@ export default function LocationPage() {
 
       const data = await res.json();
       setNearby(data.nearby);
-      setZoneCrowd(data.zoneCrowd);
+      setZoneCrowd(data.zoneCrowd); // Micro (Real-time)
+      setSatelliteCrowd(data.satelliteCrowd); // Macro (Satellite)
       setAlert(data.crowdAlert);
     }, 5000);
 
@@ -156,10 +161,28 @@ export default function LocationPage() {
 
   return (
     <div style={{ position: "relative" }}>
+      {/* Visual Indicator of Hybrid System */}
+      <div style={{
+        position: "absolute",
+        top: 10,
+        right: 10,
+        zIndex: 1000,
+        background: "rgba(0,0,0,0.8)",
+        color: "#00ff00",
+        padding: "8px 12px",
+        borderRadius: "4px",
+        fontSize: "12px",
+        fontFamily: "monospace"
+      }}>
+        📡 SATELLITE LINK: ACTIVE<br />
+        🛰️ MACRO DENSITIES: UPDATING<br />
+        📱 MICRO SENSORS: LIVE
+      </div>
+
       {alert && (
         <div style={{
           position: "absolute",
-          top: 10,
+          top: 60,
           left: "50%",
           transform: "translateX(-50%)",
           zIndex: 1000,
@@ -170,25 +193,34 @@ export default function LocationPage() {
           fontWeight: "bold",
           boxShadow: "0 2px 10px rgba(0,0,0,0.3)"
         }}>
-          ⚠️ Crowd detected within 50 meters
+          ⚠️ MICRO-LEVEL ALERT: Crowd detected within 50 meters
         </div>
       )}
 
       {recommendedZone && (
         <div style={{
           position: "absolute",
-          bottom: 20,
+          bottom: 30,
           left: "50%",
           transform: "translateX(-50%)",
           zIndex: 1000,
-          background: "rgba(0, 170, 0, 0.9)",
+          background: "rgba(0, 70, 200, 0.95)",
           color: "white",
-          padding: "10px 20px",
-          borderRadius: "8px",
+          padding: "15px 25px",
+          borderRadius: "12px",
           fontWeight: "bold",
-          boxShadow: "0 2px 10px rgba(0,0,0,0.3)"
+          boxShadow: "0 4px 15px rgba(0,0,0,0.4)",
+          textAlign: "center",
+          maxWidth: "90%"
         }}>
-          ✅ Recommended: Move towards {recommendedZone.name}
+          <div style={{ fontSize: "14px", marginBottom: "4px", opacity: 0.9 }}>
+            🛰️ SATELLITE ANALYSIS
+          </div>
+          <div>
+            Satellite indicates high density ahead.
+            <br />
+            Rerouting suggested towards <b>{recommendedZone.name}</b>
+          </div>
         </div>
       )}
 
@@ -209,8 +241,12 @@ export default function LocationPage() {
               weight: 2
             }}
           >
-            <Tooltip permanent direction="center" className="zone-tooltip">
-              {z.name} ({zoneCrowd[z.id] || 0})
+            <Tooltip permanent direction="center" className="zone-tooltip" opacity={0.9}>
+              <div style={{ textAlign: 'center' }}>
+                <b>{z.name}</b><br />
+                <span style={{ fontSize: '10px' }}>📱 App: {zoneCrowd[z.id] || 0}</span><br />
+                <span style={{ fontSize: '10px' }}>🛰️ Sat: {satelliteCrowd[z.id] || 0}</span>
+              </div>
             </Tooltip>
           </Polygon>
         ))}
