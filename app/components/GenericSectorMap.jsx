@@ -1,22 +1,9 @@
 "use client";
 
-import { MapContainer, TileLayer, Polygon, Marker } from "react-leaflet";
+import { MapContainer, TileLayer, Polygon } from "react-leaflet";
 import { useState, useMemo, useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-
-// ----------------------
-// DATA: Refined Main Polygon (Clockwise)
-// Matches the "red shape" from the area
-// ----------------------
-const mainPolygonPoints = [
-    [20.0090101, 73.7918293], // NW
-    [20.0091008, 73.7926876], // NE
-    [20.0085564, 73.7930417], // Mid-East
-    [20.0081633, 73.7928485], // SE
-    [20.0080927, 73.7920546], // SW
-    [20.0086472, 73.7917971]  // Mid-West
-];
 
 // ----------------------
 // LOGIC: Grid Subdivision
@@ -80,7 +67,7 @@ const crowdLevels = {
     3: { color: "#ef4444", label: "Heavy", fillColor: "#ef4444" }
 };
 
-export default function SectorMapView() {
+export default function GenericSectorMap({ points, mapCenter, namePrefix = "Zone" }) {
     const [selectedSectionId, setSelectedSectionId] = useState(null);
     const [sectionCrowd, setSectionCrowd] = useState({});
     const [image, setImage] = useState(null);
@@ -100,7 +87,7 @@ export default function SectorMapView() {
         });
     }, []);
 
-    const gridSections = useMemo(() => generateGridSections(mainPolygonPoints, 5, 5), []);
+    const gridSections = useMemo(() => generateGridSections(points, 5, 5), [points]);
 
     // Sync shared data every 3 seconds
     useEffect(() => {
@@ -169,14 +156,14 @@ export default function SectorMapView() {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    sectionId: selectedSectionId,
+                    sectionId: `${namePrefix}-${selectedSectionId}`,
                     level: detectedLevel,
                     timestamp: Date.now()
                 })
             });
             if (res.ok) {
                 setSuccess(true);
-                setSectionCrowd(prev => ({ ...prev, [selectedSectionId]: detectedLevel }));
+                setSectionCrowd(prev => ({ ...prev, [`${namePrefix}-${selectedSectionId}`]: detectedLevel }));
                 setTimeout(() => {
                     handleClose();
                 }, 2000);
@@ -198,8 +185,8 @@ export default function SectorMapView() {
     return (
         <div className="relative w-full h-screen bg-gray-100">
             <MapContainer
-                center={[20.0086, 73.7924]}
-                zoom={18}
+                center={mapCenter}
+                zoom={16}
                 style={{ height: "100%", width: "100%" }}
                 className="z-0"
             >
@@ -209,12 +196,12 @@ export default function SectorMapView() {
                 />
 
                 <Polygon
-                    positions={mainPolygonPoints}
+                    positions={points}
                     pathOptions={{ color: "red", weight: 3, fillOpacity: 0.05, dashArray: "5, 5" }}
                 />
 
                 {gridSections.map((section) => {
-                    const crowdLevel = sectionCrowd[section.id];
+                    const crowdLevel = sectionCrowd[`${namePrefix}-${section.id}`];
                     const style = crowdLevels[crowdLevel] || crowdLevels.null;
                     const isSelected = selectedSectionId === section.id;
 
@@ -242,7 +229,7 @@ export default function SectorMapView() {
                 <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-[1000] bg-white p-6 rounded-[2rem] shadow-2xl border border-gray-100 w-[90%] max-w-[380px] animate-in slide-in-from-bottom-5">
                     <div className="flex justify-between items-center mb-6">
                         <div>
-                            <h3 className="text-xl font-black text-gray-900 leading-none">{currentSection?.name}</h3>
+                            <h3 className="text-xl font-black text-gray-900 leading-none">{namePrefix} {currentSection?.name}</h3>
                             <p className="text-[10px] text-blue-500 font-bold uppercase tracking-widest mt-1">AI Verified Reporting</p>
                         </div>
                         <button
@@ -314,9 +301,9 @@ export default function SectorMapView() {
             )}
 
             {!selectedSectionId && (
-                <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-[1000] bg-white px-6 py-3 rounded-full shadow-xl border border-gray-100 flex items-center gap-3 animate-bounce">
+                <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-[1000] bg-white px-6 py-3 rounded-full shadow-xl border border-gray-100 flex items-center gap-3 animate-bounce text-center">
                     <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
-                    <p className="text-sm font-bold text-gray-800">Tap a sector to start AI verification</p>
+                    <p className="text-sm font-bold text-gray-800 tracking-tight">Tap any square for {namePrefix} AI check</p>
                 </div>
             )}
 
