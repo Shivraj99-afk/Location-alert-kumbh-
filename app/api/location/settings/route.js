@@ -1,4 +1,4 @@
-import { settings } from "../../store";
+import { settings } from "../store";
 import { NextResponse } from "next/server";
 
 export async function POST(req) {
