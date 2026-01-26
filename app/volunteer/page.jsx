@@ -137,10 +137,18 @@ export default function VolunteerPage() {
                     )}
                 </div>
 
-                <div className="text-center pt-10">
-                    <a href="/lost/feed" className="text-gray-400 font-bold hover:text-gray-600 transition-colors">
-                        ← Back to Feed
+                <div className="pt-4">
+                    <a
+                        href="/volunteer/report"
+                        className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-2xl shadow-lg shadow-orange-200 transition-all flex items-center justify-center gap-2 mb-4 no-underline"
+                    >
+                        📸 AI Crowd Reporter
                     </a>
+                    <div className="text-center">
+                        <a href="/lost/feed" className="text-gray-400 font-bold hover:text-gray-600 transition-colors">
+                            ← Back to Feed
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

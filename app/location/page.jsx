@@ -46,6 +46,9 @@ export default function LocationPage() {
   const [alert, setAlert] = useState(false);
   const [navigationPath, setNavigationPath] = useState(null);
   const [recommendedCell, setRecommendedCell] = useState(null);
+  const [lastSync, setLastSync] = useState(new Date());
+  const [crowdLimit, setCrowdLimit] = useState(2);
+  const [forceSafePath, setForceSafePath] = useState(false);
 
   // Fix leaflet icons
   useEffect(() => {
@@ -74,7 +77,6 @@ export default function LocationPage() {
     }
   }, []);
 
-  const [lastSync, setLastSync] = useState(new Date());
 
   // Sync with Backend
   useEffect(() => {
@@ -88,8 +90,8 @@ export default function LocationPage() {
           body: JSON.stringify({ userId, lat: pos.lat, lng: pos.lng }),
         });
 
-        // Get nearby info
-        const res = await fetch(`/api/location/nearby?userId=${userId}&lat=${pos.lat}&lng=${pos.lng}`);
+        // Get nearby info 
+        const res = await fetch(`/api/location/nearby?userId=${userId}&lat=${pos.lat}&lng=${pos.lng}&forceSafePath=${forceSafePath}`);
         const data = await res.json();
 
         setNearby(data.nearby || []);
@@ -97,6 +99,8 @@ export default function LocationPage() {
         setMyCell(data.myCell);
         setMyRank(data.myRank || 1);
         setAlert(data.alert);
+        setRecommendedCell(data.recommendation);
+        setCrowdLimit(data.crowdLimit);
         setLastSync(new Date());
       } catch (err) {
         console.error("Sync error:", err);
@@ -106,25 +110,23 @@ export default function LocationPage() {
     sync();
     const interval = setInterval(sync, 5000);
     return () => clearInterval(interval);
-  }, [pos, userId]);
+  }, [pos, userId, forceSafePath]);
 
-  // Rerouting Logic
-  useEffect(() => {
-    if (alert && gridCrowd.length > 0) {
-      // Find the least crowded cell in the current snippet
-      const best = [...gridCrowd].sort((a, b) => a.count - b.count)[0];
-      if (best && best.id !== myCell) {
-        setRecommendedCell(best);
-      } else {
-        setRecommendedCell(null);
-      }
-    } else if (!alert) {
-      setRecommendedCell(null);
-      setNavigationPath(null);
+  // Update Global Limit
+  const handleLimitChange = async (newLimit) => {
+    try {
+      await fetch("/api/location/settings", {
+        method: "POST",
+        body: JSON.stringify({ limit: parseInt(newLimit) }),
+      });
+      setCrowdLimit(newLimit);
+    } catch (err) {
+      console.error("Settings error:", err);
     }
-  }, [alert, gridCrowd, myCell]);
+  };
 
-  // Fetch Route to Recommended Cell
+  // Rerouting Logic is now handled by the API (recommendedCell comes from sync)
+
   useEffect(() => {
     if (!pos || !recommendedCell) {
       setNavigationPath(null);
@@ -147,7 +149,7 @@ export default function LocationPage() {
       }
     };
     fetchRoute();
-  }, [pos, recommendedCell]);
+  }, [pos, recommendedCell?.id]);
 
   if (!pos) {
     return (
@@ -171,21 +173,37 @@ export default function LocationPage() {
           <a href="/volunteer" className="bg-white/90 backdrop-blur-md text-emerald-600 px-4 py-2 rounded-xl border border-emerald-100 shadow-lg font-bold text-sm tracking-tight flex items-center gap-2 hover:bg-white transition-all">
             🤝 <span className="hidden sm:inline">VOLUNTEER</span>
           </a>
-          <a href="/sector-map" className="bg-white/90 backdrop-blur-md text-orange-600 px-4 py-2 rounded-xl border border-orange-100 shadow-lg font-bold text-sm tracking-tight flex items-center gap-2 hover:bg-white transition-all">
-            🗺️ <span className="hidden sm:inline">SECTOR MAP</span>
-          </a>
+          <button
+            onClick={() => setForceSafePath(!forceSafePath)}
+            className={`bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl border shadow-lg font-bold text-sm tracking-tight flex items-center gap-2 transition-all pointer-events-auto ${forceSafePath ? 'text-red-600 border-red-100 ring-2 ring-red-500/20' : 'text-slate-800 border-slate-100 hover:bg-white'}`}>
+            🧭 {forceSafePath ? 'MANUAL NAVIGATION: ON' : 'GET SAFE PATH'}
+          </button>
         </div>
 
-        <div className="bg-black/80 backdrop-blur-md text-green-400 p-4 rounded-2xl border border-green-500/30 shadow-2xl font-mono text-[10px] sm:text-xs pointer-events-auto min-w-[140px]">
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="font-bold">MICRO SENSORS: LIVE</span>
+        <div className="bg-black/80 backdrop-blur-md text-green-400 p-4 rounded-2xl border border-green-500/30 shadow-2xl font-mono text-[10px] sm:text-xs pointer-events-auto min-w-[160px]">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="font-bold">MICRO-HUD</span>
+            </div>
+            <span className="opacity-50 text-[8px]">{lastSync.toLocaleTimeString([], { second: '2-digit' })}s</span>
           </div>
-          <div className="space-y-1 opacity-80">
-            <div>ID: {userId.slice(0, 8)}</div>
-            <div>SYNC: {lastSync.toLocaleTimeString([], { second: '2-digit' })}s</div>
-            <div className="text-yellow-400 font-bold border-t border-green-500/20 mt-1 pt-1">
-              ENTRY ORDER: #{myRank}
+
+          <div className="space-y-2">
+            <div className="flex justify-between items-center bg-white/5 p-1.5 rounded-lg border border-white/10">
+              <span className="opacity-60 text-[9px] uppercase tracking-tighter">LIMIT / CELL</span>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                value={crowdLimit}
+                onChange={(e) => handleLimitChange(e.target.value)}
+                className="bg-green-500/20 text-green-400 w-8 text-center rounded border border-green-500/30 font-bold focus:outline-none focus:ring-1 focus:ring-green-400"
+              />
+            </div>
+            <div className="flex justify-between items-center opacity-80 border-t border-white/5 pt-1">
+              <span>RANK</span>
+              <span className="text-yellow-400 font-bold underline">#{myRank}</span>
             </div>
           </div>
         </div>
@@ -200,14 +218,14 @@ export default function LocationPage() {
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
               </div>
               <div>
-                <h3 className="font-black text-lg leading-tight">CROWD DETECTED</h3>
-                <p className="text-blue-100 text-sm opacity-80 font-medium">Auto-rerouting to clearer zone</p>
+                <h3 className="font-black text-lg leading-tight uppercase tracking-tighter">{forceSafePath ? 'Optimized Route Found' : 'Heavy Crowd Detected'}</h3>
+                <p className="text-blue-100 text-sm opacity-80 font-medium">Load-balanced path established</p>
               </div>
             </div>
             <div className="bg-white/10 rounded-2xl p-4 flex justify-between items-center">
-              <span className="text-xs font-bold uppercase tracking-widest opacity-60">Suggested Destination</span>
+              <span className="text-xs font-bold uppercase tracking-widest opacity-60">Target sector</span>
               <span className="font-mono bg-white text-blue-600 px-3 py-1 rounded-lg text-sm font-black">
-                ZONE {String.fromCharCode(65 + gridCrowd.indexOf(recommendedCell))}
+                SECTOR {String.fromCharCode(64 + gridCrowd.indexOf(recommendedCell) + 1)}
               </span>
             </div>
           </div>
@@ -218,7 +236,7 @@ export default function LocationPage() {
       {alert && !recommendedCell && (
         <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[1000] w-[90%] pointer-events-none">
           <div className="bg-red-500 text-white px-6 py-3 rounded-2xl shadow-2xl font-black text-center animate-bounce border-2 border-red-400 pointer-events-auto uppercase tracking-tighter">
-            ⚠️ Micro-Level Alert: High Density Area
+            ⚠️ Alert: Sector Limit Exceeded ({crowdLimit}+)
           </div>
         </div>
       )}
@@ -237,7 +255,7 @@ export default function LocationPage() {
           const isRecommended = recommendedCell && cell.id === recommendedCell.id;
           const opacity = isMe ? 0.6 : 0.3;
           let color = "#10b981"; // Green (Safe)
-          if (cell.count > 2) color = "#ef4444"; // Red (High)
+          if (cell.count >= crowdLimit) color = "#ef4444"; // Red (High)
           else if (cell.count > 0) color = "#f59e0b"; // Orange (Med)
 
           if (isRecommended) color = "#3b82f6"; // Blue (Recommended)
@@ -255,12 +273,12 @@ export default function LocationPage() {
                 color: isRecommended ? "#3b82f6" : "white",
                 fillColor: color,
                 fillOpacity: opacity,
-                weight: isMe || isRecommended ? 3 : 1,
+                weight: isMe || isRecommended ? 4 : 1,
               }}
             >
               <Tooltip permanent={isMe || isRecommended} direction="center" className="grid-tooltip">
                 <div className="text-center font-bold text-[10px]">
-                  {isMe ? "YOU" : `ZONE ${String.fromCharCode(65 + idx)}`}
+                  {isMe ? "YOU" : `SEC ${String.fromCharCode(65 + idx)}`}
                   <br />
                   <span className="opacity-70">👥 {cell.count}</span>
                 </div>
