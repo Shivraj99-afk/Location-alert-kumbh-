@@ -42,38 +42,15 @@ export default function LocationPage() {
   const [pos, setPos] = useState(null);
   const [nearby, setNearby] = useState([]);
   const [zoneCrowd, setZoneCrowd] = useState({});
-  const [satelliteCrowd, setSatelliteCrowd] = useState({}); // New Macro Data
   const [myRank, setMyRank] = useState(1); // User's arrival order in current zone
   const [alert, setAlert] = useState(false);
-  const [navigationPath, setNavigationPath] = useState(null);
 
   const myZone = pos ? zones.find(z =>
     isInside([pos.lat, pos.lng], z.polygon)
   ) : null;
 
-  let recommendedZone = null;
-  let targetCentroid = null;
-
-  // Use SATELLITE data for strategic recommendation (Macro layer)
-  // ONLY show to those who came later (myRank > 1) AND the zone is crowded
-  if (myZone && (zoneCrowd[myZone.id] > 1) && myRank > 1) {
-    let min = Infinity;
-    for (const n of myZone.neighbors) {
-      // Use satelliteCrowd for decision making
-      const density = satelliteCrowd[n] || 0;
-      if (density < min) {
-        min = density;
-        recommendedZone = zones.find(z => z.id === n);
-      }
-    }
-
-    if (recommendedZone) {
-      const coords = recommendedZone.polygon;
-      const tLat = coords.reduce((sum, p) => sum + p[0], 0) / coords.length;
-      const tLng = coords.reduce((sum, p) => sum + p[1], 0) / coords.length;
-      targetCentroid = [tLat, tLng];
-    }
-  }
+  const recommendedZone = null;
+  const targetCentroid = null;
 
   // ✅ fix leaflet icons CLIENT ONLY
   useEffect(() => {
@@ -127,7 +104,6 @@ export default function LocationPage() {
       const data = await res.json();
       setNearby(data.nearby);
       setZoneCrowd(data.zoneCrowd); // Micro (Real-time)
-      setSatelliteCrowd(data.satelliteCrowd); // Macro (Satellite)
       setMyRank(data.myRank); // Arrival order
       setAlert(data.crowdAlert);
     }, 5000);
@@ -135,30 +111,6 @@ export default function LocationPage() {
     return () => clearInterval(id);
   }, [pos]);
 
-  // Fetch route when recommendation changes
-  useEffect(() => {
-    if (!pos || !recommendedZone) {
-      setNavigationPath(null);
-      return;
-    }
-
-    const fetchRoute = async () => {
-      try {
-        const url = `https://router.project-osrm.org/route/v1/walking/${pos.lng},${pos.lat};${targetCentroid[1]},${targetCentroid[0]}?overview=full&geometries=geojson`;
-        const res = await fetch(url);
-        const data = await res.json();
-
-        if (data.routes && data.routes.length > 0) {
-          const path = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-          setNavigationPath(path);
-        }
-      } catch (err) {
-        console.error("Routing error:", err);
-      }
-    };
-
-    fetchRoute();
-  }, [pos, recommendedZone?.id]);
 
   if (!pos) return <p>Detecting location...</p>;
 
@@ -223,8 +175,8 @@ export default function LocationPage() {
         </a>
       </div >
 
-      {/* Visual Indicator of Hybrid System */}
-      < div style={{
+      {/* System Status */}
+      <div style={{
         position: "absolute",
         top: 10,
         right: 10,
@@ -236,11 +188,9 @@ export default function LocationPage() {
         fontSize: "12px",
         fontFamily: "monospace"
       }}>
-        📡 SATELLITE LINK: ACTIVE < br />
-        🛰️ MACRO DENSITIES: UPDATING < br />
-        📱 MICRO SENSORS: LIVE < br />
+        📱 MICRO SENSORS: LIVE <br />
         🔢 ENTRY ORDER: {myRank}
-      </div >
+      </div>
 
       {alert && (
         <div style={{
@@ -260,34 +210,6 @@ export default function LocationPage() {
         </div>
       )}
 
-      {
-        recommendedZone && (
-          <div style={{
-            position: "absolute",
-            bottom: 30,
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 1000,
-            background: "rgba(0, 70, 200, 0.95)",
-            color: "white",
-            padding: "15px 25px",
-            borderRadius: "12px",
-            fontWeight: "bold",
-            boxShadow: "0 4px 15px rgba(0,0,0,0.4)",
-            textAlign: "center",
-            maxWidth: "90%"
-          }}>
-            <div style={{ fontSize: "14px", marginBottom: "4px", opacity: 0.9 }}>
-              🛰️ SATELLITE ANALYSIS
-            </div>
-            <div>
-              Satellite indicates high density ahead.
-              <br />
-              Rerouting suggested towards <b>{recommendedZone.name}</b>
-            </div>
-          </div>
-        )
-      }
 
       <MapContainer
         center={[pos.lat, pos.lng]}
@@ -301,7 +223,7 @@ export default function LocationPage() {
             key={z.id}
             positions={z.polygon}
             pathOptions={{
-              color: z.id === myZone?.id ? "#ff4444" : z.id === recommendedZone?.id ? "#00c851" : "#33b5e5",
+              color: z.id === myZone?.id ? "#ff4444" : "#33b5e5",
               fillOpacity: 0.3,
               weight: 2
             }}
@@ -309,8 +231,7 @@ export default function LocationPage() {
             <Tooltip permanent direction="center" className="zone-tooltip" opacity={0.9}>
               <div style={{ textAlign: 'center' }}>
                 <b>{z.name}</b><br />
-                <span style={{ fontSize: '10px' }}>📱 App: {zoneCrowd[z.id] || 0}</span><br />
-                <span style={{ fontSize: '10px' }}>🛰️ Sat: {satelliteCrowd[z.id] || 0}</span>
+                <span style={{ fontSize: '10px' }}>📱 App: {zoneCrowd[z.id] || 0}</span>
               </div>
             </Tooltip>
           </Polygon>
@@ -322,32 +243,6 @@ export default function LocationPage() {
           <Marker key={u.id} position={[u.lat, u.lng]} />
         ))}
 
-        {navigationPath && (
-          <>
-            <Polyline
-              positions={navigationPath}
-              pathOptions={{
-                color: "#1a73e8",
-                weight: 8,
-                opacity: 0.6,
-              }}
-            />
-            <Polyline
-              positions={navigationPath}
-              pathOptions={{
-                color: "#4285f4",
-                weight: 4,
-                opacity: 1,
-                dashArray: "1, 10"
-              }}
-            />
-            {targetCentroid && (
-              <Marker position={targetCentroid}>
-                <Tooltip permanent direction="top">🚩 Destination: {recommendedZone.name}</Tooltip>
-              </Marker>
-            )}
-          </>
-        )}
 
         <Circle center={[pos.lat, pos.lng]} radius={50} pathOptions={{ color: alert ? "red" : "blue" }} />
       </MapContainer>

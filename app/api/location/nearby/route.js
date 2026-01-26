@@ -56,20 +56,6 @@ export async function GET(req) {
     }
   }
 
-  // 2. Simulate Satellite Data (Macro) - The "Strategic" View
-  // We simulate much higher numbers because satellites see EVERYONE, not just app users.
-  const satelliteCrowd = {};
-  for (const z of zones) {
-    // Base density + some fluctuation to look "live"
-    // We force Zone B to be very crowded to demonstrate rerouting if the user is near it
-    let base = 1200;
-    if (z.id === "A") base = 4500; // Very crowded
-    if (z.id === "B") base = 800;  // Moderate
-    if (z.id === "C") base = 150;  // Open
-
-    satelliteCrowd[z.id] = base + Math.floor(Math.random() * 50);
-  }
-
   // 3. Determine User Rank (Arrival Order) in Current Zone
   let myRank = 1;
   const allUsers = Array.from(users.entries()).map(([id, u]) => ({ id, ...u }));
@@ -87,7 +73,6 @@ export async function GET(req) {
     nearby,
     crowdAlert: nearby.length >= 3, // Alert if > 3 people are within 50m (Micro alert)
     zoneCrowd: realTimeZoneCrowd,   // App users only
-    satelliteCrowd,                 // "Satellite" estimates
     myRank,                         // User's order in the zone
   });
 }
