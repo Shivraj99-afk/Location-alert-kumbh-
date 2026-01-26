@@ -164,8 +164,43 @@ export default function LocationPage() {
 
   return (
     <div style={{ position: "relative" }}>
-      {/* Visual Indicator of Hybrid System */}
+      {/* Community Links */}
       <div style={{
+        position: "absolute",
+        top: 10,
+        left: 10,
+        zIndex: 1000,
+        display: "flex",
+        gap: "10px"
+      }}>
+        <a href="/lost/feed" style={{
+          background: "white",
+          color: "#2563eb",
+          padding: "8px 16px",
+          borderRadius: "8px",
+          fontWeight: "bold",
+          fontSize: "14px",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+          textDecoration: "none"
+        }}>
+          📢 Lost & Found
+        </a>
+        <a href="/volunteer" style={{
+          background: "white",
+          color: "#059669",
+          padding: "8px 16px",
+          borderRadius: "8px",
+          fontWeight: "bold",
+          fontSize: "14px",
+          boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
+          textDecoration: "none"
+        }}>
+          🤝 Volunteer
+        </a>
+      </div >
+
+      {/* Visual Indicator of Hybrid System */}
+      < div style={{
         position: "absolute",
         top: 10,
         right: 10,
@@ -177,11 +212,11 @@ export default function LocationPage() {
         fontSize: "12px",
         fontFamily: "monospace"
       }}>
-        📡 SATELLITE LINK: ACTIVE<br />
-        🛰️ MACRO DENSITIES: UPDATING<br />
-        📱 MICRO SENSORS: LIVE<br />
+        📡 SATELLITE LINK: ACTIVE < br />
+        🛰️ MACRO DENSITIES: UPDATING < br />
+        📱 MICRO SENSORS: LIVE < br />
         🔢 ENTRY ORDER: {myRank}
-      </div>
+      </div >
 
       {alert && (
         <div style={{
@@ -201,32 +236,34 @@ export default function LocationPage() {
         </div>
       )}
 
-      {recommendedZone && (
-        <div style={{
-          position: "absolute",
-          bottom: 30,
-          left: "50%",
-          transform: "translateX(-50%)",
-          zIndex: 1000,
-          background: "rgba(0, 70, 200, 0.95)",
-          color: "white",
-          padding: "15px 25px",
-          borderRadius: "12px",
-          fontWeight: "bold",
-          boxShadow: "0 4px 15px rgba(0,0,0,0.4)",
-          textAlign: "center",
-          maxWidth: "90%"
-        }}>
-          <div style={{ fontSize: "14px", marginBottom: "4px", opacity: 0.9 }}>
-            🛰️ SATELLITE ANALYSIS
+      {
+        recommendedZone && (
+          <div style={{
+            position: "absolute",
+            bottom: 30,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 1000,
+            background: "rgba(0, 70, 200, 0.95)",
+            color: "white",
+            padding: "15px 25px",
+            borderRadius: "12px",
+            fontWeight: "bold",
+            boxShadow: "0 4px 15px rgba(0,0,0,0.4)",
+            textAlign: "center",
+            maxWidth: "90%"
+          }}>
+            <div style={{ fontSize: "14px", marginBottom: "4px", opacity: 0.9 }}>
+              🛰️ SATELLITE ANALYSIS
+            </div>
+            <div>
+              Satellite indicates high density ahead.
+              <br />
+              Rerouting suggested towards <b>{recommendedZone.name}</b>
+            </div>
           </div>
-          <div>
-            Satellite indicates high density ahead.
-            <br />
-            Rerouting suggested towards <b>{recommendedZone.name}</b>
-          </div>
-        </div>
-      )}
+        )
+      }
 
       <MapContainer
         center={[pos.lat, pos.lng]}
@@ -290,6 +327,6 @@ export default function LocationPage() {
 
         <Circle center={[pos.lat, pos.lng]} radius={50} pathOptions={{ color: alert ? "red" : "blue" }} />
       </MapContainer>
-    </div>
+    </div >
   );
 }
