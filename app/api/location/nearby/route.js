@@ -70,10 +70,24 @@ export async function GET(req) {
     satelliteCrowd[z.id] = base + Math.floor(Math.random() * 50);
   }
 
+  // 3. Determine User Rank (Arrival Order) in Current Zone
+  let myRank = 1;
+  const allUsers = Array.from(users.entries()).map(([id, u]) => ({ id, ...u }));
+  const meData = allUsers.find(u => u.id === userId);
+
+  if (meData && meData.currentZone) {
+    const zoneResidents = allUsers
+      .filter(u => u.currentZone === meData.currentZone)
+      .sort((a, b) => a.joinTime - b.joinTime);
+
+    myRank = zoneResidents.findIndex(u => u.id === userId) + 1;
+  }
+
   return NextResponse.json({
     nearby,
     crowdAlert: nearby.length >= 3, // Alert if > 3 people are within 50m (Micro alert)
     zoneCrowd: realTimeZoneCrowd,   // App users only
     satelliteCrowd,                 // "Satellite" estimates
+    myRank,                         // User's order in the zone
   });
 }

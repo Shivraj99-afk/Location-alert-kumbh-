@@ -43,6 +43,7 @@ export default function LocationPage() {
   const [nearby, setNearby] = useState([]);
   const [zoneCrowd, setZoneCrowd] = useState({});
   const [satelliteCrowd, setSatelliteCrowd] = useState({}); // New Macro Data
+  const [myRank, setMyRank] = useState(1); // User's arrival order in current zone
   const [alert, setAlert] = useState(false);
   const [navigationPath, setNavigationPath] = useState(null);
 
@@ -54,8 +55,8 @@ export default function LocationPage() {
   let targetCentroid = null;
 
   // Use SATELLITE data for strategic recommendation (Macro layer)
-  // ONLY if the current zone has more than 1 person (crowd starting to form)
-  if (myZone && (zoneCrowd[myZone.id] > 1)) {
+  // ONLY show to those who came later (myRank > 1) AND the zone is crowded
+  if (myZone && (zoneCrowd[myZone.id] > 1) && myRank > 1) {
     let min = Infinity;
     for (const n of myZone.neighbors) {
       // Use satelliteCrowd for decision making
@@ -127,6 +128,7 @@ export default function LocationPage() {
       setNearby(data.nearby);
       setZoneCrowd(data.zoneCrowd); // Micro (Real-time)
       setSatelliteCrowd(data.satelliteCrowd); // Macro (Satellite)
+      setMyRank(data.myRank); // Arrival order
       setAlert(data.crowdAlert);
     }, 5000);
 
@@ -177,7 +179,8 @@ export default function LocationPage() {
       }}>
         📡 SATELLITE LINK: ACTIVE<br />
         🛰️ MACRO DENSITIES: UPDATING<br />
-        📱 MICRO SENSORS: LIVE
+        📱 MICRO SENSORS: LIVE<br />
+        🔢 ENTRY ORDER: {myRank}
       </div>
 
       {alert && (
