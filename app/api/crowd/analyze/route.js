@@ -13,11 +13,11 @@ export async function POST(req) {
 
         const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
 
-        const prompt = `Analyze this image of a crowd and determine the density level. 
+        const prompt = `Analyze this image of a crowd and determine the density level based on headcount:
         Respond with exactly ONE word from this list: "LOW", "MEDIUM", or "HIGH".
-        - "LOW": Very few people, plenty of space to move.
-        - "MEDIUM": Moderate number of people, movement starts to slow down but still comfortable.
-        - "HIGH": Dense crowd, shoulder to shoulder, movement is difficult.
+        - "LOW": Less than 50 people.
+        - "MEDIUM": Between 50 and 100 people.
+        - "HIGH": More than 100 people.
         If the image does not show a crowd or is unclear, default to "LOW".`;
 
         // The image data is base64, need to strip the prefix if it exists
