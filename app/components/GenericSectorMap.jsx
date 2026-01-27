@@ -1,6 +1,6 @@
 "use client";
 
-import { MapContainer, TileLayer, Polygon } from "react-leaflet";
+import { MapContainer, TileLayer, Polygon, Polyline, Tooltip, Circle } from "react-leaflet";
 import { useState, useMemo, useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -67,7 +67,7 @@ const crowdLevels = {
     3: { color: "#ef4444", label: "Heavy", fillColor: "#ef4444" }
 };
 
-export default function GenericSectorMap({ points, mapCenter, namePrefix = "Zone", rows = 5, cols = 5 }) {
+export default function GenericSectorMap({ points, crowdRoad = [], safeRoad = [], startPos = null, mapCenter, namePrefix = "Zone", rows = 5, cols = 5 }) {
     const [selectedSectionId, setSelectedSectionId] = useState(null);
     const [sectionCrowd, setSectionCrowd] = useState({});
     const [image, setImage] = useState(null);
@@ -75,6 +75,11 @@ export default function GenericSectorMap({ points, mapCenter, namePrefix = "Zone
     const [detectedLevel, setDetectedLevel] = useState(null);
     const [success, setSuccess] = useState(false);
     const fileInputRef = useRef(null);
+
+    // Simulation states
+    const [simPersonPos, setSimPersonPos] = useState(startPos);
+    const [simRunning, setSimRunning] = useState(false);
+    const simIntervalRef = useRef(null);
 
     // Fix leaflet icons
     useEffect(() => {
@@ -103,6 +108,42 @@ export default function GenericSectorMap({ points, mapCenter, namePrefix = "Zone
 
         syncData();
     }, []);
+
+    const handleSimStart = () => {
+        if (simRunning || !startPos || safeRoad.length === 0) return;
+
+        setSimRunning(true);
+        setSimPersonPos(startPos);
+
+        const fullPath = [startPos, ...[...safeRoad].reverse()]; // Join start to end of safe path
+        let pointIndex = 0;
+        let stepIndex = 0;
+        const STEPS_PER_SEGMENT = 20;
+
+        const move = () => {
+            if (pointIndex >= fullPath.length - 1) {
+                setSimRunning(false);
+                clearInterval(simIntervalRef.current);
+                return;
+            }
+
+            const start = fullPath[pointIndex];
+            const end = fullPath[pointIndex + 1];
+
+            const nextLat = start[0] + (end[0] - start[0]) * (stepIndex / STEPS_PER_SEGMENT);
+            const nextLng = start[1] + (end[1] - start[1]) * (stepIndex / STEPS_PER_SEGMENT);
+
+            setSimPersonPos([nextLat, nextLng]);
+
+            stepIndex++;
+            if (stepIndex > STEPS_PER_SEGMENT) {
+                stepIndex = 0;
+                pointIndex++;
+            }
+        };
+
+        simIntervalRef.current = setInterval(move, 50);
+    };
 
     const handleSectionClick = (id) => {
         setSelectedSectionId(id);
@@ -182,9 +223,45 @@ export default function GenericSectorMap({ points, mapCenter, namePrefix = "Zone
 
     return (
         <div className="relative w-full h-screen bg-gray-100">
+            <style jsx global>{`
+                .crowd-line-glow {
+                    filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8));
+                    animation: crowd-pulse 2s infinite ease-in-out;
+                }
+                .safe-line-glow {
+                    filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.8));
+                }
+                @keyframes crowd-pulse {
+                    0% { opacity: 0.6; stroke-width: 8; }
+                    50% { opacity: 1; stroke-width: 12; }
+                    100% { opacity: 0.6; stroke-width: 8; }
+                }
+                .sim-btn {
+                    box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.4);
+                }
+            `}</style>
+
+            {/* Simulation Controls */}
+            {startPos && (
+                <div className="absolute top-6 left-6 z-[1000] flex flex-col gap-2">
+                    <button
+                        onClick={handleSimStart}
+                        disabled={simRunning}
+                        className={`sim-btn px-6 py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all ${simRunning ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white active:scale-95'}`}
+                    >
+                        {simRunning ? 'Simulation Running...' : '🚀 Start Simulation'}
+                    </button>
+                    {simRunning && (
+                        <div className="bg-white/80 backdrop-blur-md px-4 py-2 rounded-xl text-[10px] font-bold text-blue-600 border border-blue-100 animate-pulse uppercase tracking-widest">
+                            Navigating to Safe Zone...
+                        </div>
+                    )}
+                </div>
+            )}
+
             <MapContainer
                 center={mapCenter}
-                zoom={16}
+                zoom={17}
                 style={{ height: "100%", width: "100%" }}
                 className="z-0"
             >
@@ -197,6 +274,83 @@ export default function GenericSectorMap({ points, mapCenter, namePrefix = "Zone
                     positions={points}
                     pathOptions={{ color: "red", weight: 3, fillOpacity: 0.05, dashArray: "5, 5" }}
                 />
+
+                {/* Highly Crowded Road (Red) */}
+                {crowdRoad.length > 0 && (
+                    <>
+                        <Polyline
+                            positions={crowdRoad}
+                            pathOptions={{
+                                color: "#ef4444",
+                                weight: 10,
+                                opacity: 0.8,
+                                lineCap: 'round',
+                                className: 'crowd-line-glow'
+                            }}
+                        >
+                            <Tooltip sticky>
+                                <div className="px-3 py-1 font-black text-rose-600 uppercase text-[10px] tracking-tighter">
+                                    ⚠️ Heavy Road Crowd
+                                </div>
+                            </Tooltip>
+                        </Polyline>
+                        <Polyline
+                            positions={crowdRoad}
+                            pathOptions={{
+                                color: "white",
+                                weight: 2,
+                                dashArray: '5, 10',
+                                opacity: 0.5
+                            }}
+                        />
+                    </>
+                )}
+
+                {/* Safe Road (Green) */}
+                {safeRoad.length > 0 && (
+                    <>
+                        <Polyline
+                            positions={safeRoad}
+                            pathOptions={{
+                                color: "#22c55e",
+                                weight: 8,
+                                opacity: 0.8,
+                                lineCap: 'round',
+                                className: 'safe-line-glow'
+                            }}
+                        >
+                            <Tooltip sticky>
+                                <div className="px-3 py-1 font-black text-emerald-600 uppercase text-[10px] tracking-tighter">
+                                    ✅ Safe Route
+                                </div>
+                            </Tooltip>
+                        </Polyline>
+                        <Polyline
+                            positions={safeRoad}
+                            pathOptions={{
+                                color: "white",
+                                weight: 1.5,
+                                dashArray: '8, 12',
+                                opacity: 0.4
+                            }}
+                        />
+                    </>
+                )}
+
+                {/* Moving Person Dot */}
+                {simPersonPos && (
+                    <Circle
+                        center={simPersonPos}
+                        radius={5}
+                        pathOptions={{
+                            color: "white",
+                            fillColor: "#3b82f6",
+                            fillOpacity: 1,
+                            weight: 3,
+                            className: 'person-dot'
+                        }}
+                    />
+                )}
 
                 {gridSections.map((section) => {
                     const crowdLevel = sectionCrowd[`${namePrefix}-${section.id}`];
@@ -299,7 +453,7 @@ export default function GenericSectorMap({ points, mapCenter, namePrefix = "Zone
             )}
 
             {!selectedSectionId && (
-                <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-[1000] bg-white px-6 py-3 rounded-full shadow-xl border border-gray-100 flex items-center gap-3 animate-bounce text-center">
+                <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-[1000] bg-white px-6 py-3 rounded-full shadow-xl border border-gray-100 flex items-center gap-3 animate-bounce text-center">
                     <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
                     <p className="text-sm font-bold text-gray-800 tracking-tight">Tap any square for {namePrefix} AI check</p>
                 </div>
