@@ -22,7 +22,7 @@ export default function CustomSectorPage() {
             points={customPoints}
             mapCenter={center}
             namePrefix="Nashik-B"
-            rows={12}
+            rows={15}
             cols={12}
         />
     );
