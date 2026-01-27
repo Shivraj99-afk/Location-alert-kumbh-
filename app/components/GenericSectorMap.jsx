@@ -222,7 +222,7 @@ export default function GenericSectorMap({ points, crowdRoad = [], safeRoad = []
     const currentSection = gridSections.find(s => s.id === selectedSectionId);
 
     return (
-        <div className="relative w-full h-screen bg-black">
+        <div className="relative w-full h-screen bg-gray-100">
             <style jsx global>{`
                 .crowd-line-glow {
                     filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8));
@@ -248,7 +248,6 @@ export default function GenericSectorMap({ points, crowdRoad = [], safeRoad = []
                 .sim-btn {
                     box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.4);
                 }
-                .map-tiles { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
                 .bot-label { background: transparent !important; border: none !important; box-shadow: none !important; }
             `}</style>
 
@@ -279,7 +278,6 @@ export default function GenericSectorMap({ points, crowdRoad = [], safeRoad = []
                 <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution='&copy; OpenStreetMap contributors'
-                    className="map-tiles"
                 />
 
                 <Polygon
