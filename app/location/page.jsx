@@ -38,8 +38,9 @@ const Polyline = dynamic(
 
 export default function LocationPage() {
   const [userId] = useState(uuid());
-  const [pos, setPos] = useState(null);
-  const posRef = useState({ current: null })[0]; // Use a ref-like object that doesn't trigger effect
+  const [pos, setPos] = useState({ lat: 19.9975, lng: 73.7898 }); // Default to Nashik
+  const [hasGPS, setHasGPS] = useState(false);
+  const posRef = useState({ current: { lat: 19.9975, lng: 73.7898 } })[0];
   const [nearby, setNearby] = useState([]);
   const [gridCrowd, setGridCrowd] = useState([]);
   const [myCell, setMyCell] = useState(null);
@@ -84,6 +85,7 @@ export default function LocationPage() {
         (p) => {
           const newPos = { lat: p.coords.latitude, lng: p.coords.longitude };
           setPos(newPos);
+          setHasGPS(true);
           posRef.current = newPos;
         },
         (err) => console.error("GPS Error:", err),
@@ -145,9 +147,7 @@ export default function LocationPage() {
     };
 
     sync();
-    const interval = setInterval(sync, 5000);
-    return () => clearInterval(interval);
-  }, [userId, forceSafePath, manualTarget?.lat, manualTarget?.lng]); // Removed pos to stop request storm
+  }, [userId, forceSafePath, manualTarget?.lat, manualTarget?.lng]);
 
   const handleGroupAction = async (action, code, name) => {
     try {
@@ -180,28 +180,41 @@ export default function LocationPage() {
   // Rerouting Logic is now handled 100% by the API SafestPath (Grid-based, NO ROADS)
   // This ensures we avoid crowds in open fields like Ram Kund.
 
-  if (!pos) {
-    return (
-      <div className="h-screen w-full flex items-center justify-center bg-gray-900 text-white font-mono">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="animate-pulse">INITIALIZING MICRO-SENSORS...</p>
-        </div>
-      </div>
-    );
-  }
+  const fallbackGrid = useMemo(() => {
+    return Array.from({ length: 121 }).map((_, i) => { // 11x11 fallback is enough
+      const r = Math.floor(i / 11) - 5;
+      const c = (i % 11) - 5;
+      const myRLat = Math.floor(pos.lat / LAT_STEP);
+      const myRLng = Math.floor(pos.lng / LNG_STEP);
+      const rid = (myRLat + r);
+      const cid = (myRLng + c);
+      return {
+        id: `${rid},${cid}`,
+        lat: rid * LAT_STEP,
+        lng: cid * LNG_STEP,
+        count: 0
+      };
+    });
+  }, [Math.floor(pos.lat / LAT_STEP), Math.floor(pos.lng / LNG_STEP)]);
+
+  // No more blocking loading screen - we show the map with a status indicator
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
       {/* Dynamic Header */}
       <div className="absolute top-4 left-4 right-4 z-[1000] flex justify-between items-start pointer-events-none">
         <div className="flex flex-col gap-2 pointer-events-auto">
-          <a href="/lost/feed" className="bg-white/90 backdrop-blur-md text-blue-600 px-4 py-2 rounded-xl border border-blue-100 shadow-lg font-bold text-sm tracking-tight flex items-center gap-2 hover:bg-white transition-all">
+          {!hasGPS && (
+            <div className="bg-amber-500 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg animate-pulse mb-1">
+              ⌛ Searching for GPS...
+            </div>
+          )}
+          <a href="/lost/feed" className="bg-white text-blue-600 px-4 py-2 rounded-xl border border-blue-100 shadow-lg font-bold text-sm tracking-tight flex items-center gap-2 transition-all">
             📢 <span className="hidden sm:inline">LOST & FOUND</span>
           </a>
           <button
             onClick={() => setShowGroupModal(true)}
-            className={`bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl border shadow-lg font-bold text-sm tracking-tight flex items-center gap-2 transition-all pointer-events-auto ${groupCode ? 'text-blue-600 border-blue-100' : 'text-slate-800 border-slate-100 hover:bg-white'}`}>
+            className={`bg-white px-4 py-2 rounded-xl border shadow-lg font-bold text-sm tracking-tight flex items-center gap-2 transition-all pointer-events-auto ${groupCode ? 'text-blue-600 border-blue-100' : 'text-slate-800 border-slate-100'}`}>
             👨‍👩‍👧‍👦 {groupCode ? `FAMILY: ${groupCode}` : 'LINK FAMILY'}
           </button>
           <button
@@ -222,7 +235,7 @@ export default function LocationPage() {
           )}
         </div>
 
-        <div className="bg-black/80 backdrop-blur-md text-green-400 p-4 rounded-2xl border border-green-500/30 shadow-2xl font-mono text-[10px] sm:text-xs pointer-events-auto min-w-[160px]">
+        <div className="bg-slate-900 border border-white/10 text-green-400 p-4 rounded-2xl shadow-2xl font-mono text-[10px] sm:text-xs pointer-events-auto min-w-[160px]">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -364,67 +377,64 @@ export default function LocationPage() {
       >
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-        {/* Dynamic Grid Rendering */}
-        {(gridCrowd.length > 0 ? gridCrowd : Array.from({ length: 441 }).map((_, i) => { // 21x21 grid
-          const r = Math.floor(i / 21) - 10; // -10 to +10
-          const c = (i % 21) - 10; // -10 to +10
-          const myRLat = Math.floor(pos.lat / LAT_STEP);
-          const myRLng = Math.floor(pos.lng / LNG_STEP);
-          const rid = (myRLat + r);
-          const cid = (myRLng + c);
-          return {
-            id: `${rid},${cid}`,
-            lat: rid * LAT_STEP,
-            lng: cid * LNG_STEP,
-            count: 0
-          };
-        })).map((cell, idx) => {
-          const isMe = cell.id === myCell;
-          const isRecommended = recommendedCell && cell.id === recommendedCell.id;
-          const isSelected = manualTarget && cell.id === manualTarget.cellId;
-          const opacity = isMe ? 0.6 : (cell.count > 0 ? 0.4 : 0.2);
-          let color = "#10b981"; // Green (Safe)
-          if (cell.count >= crowdLimit) color = "#ef4444"; // Red (High)
-          else if (cell.count > 0) color = "#f59e0b"; // Orange (Med)
+        {/* Dynamic Grid Rendering - Optimized for Mobile Performance */}
+        {(gridCrowd.length > 0 ? gridCrowd : fallbackGrid)
+          .filter(cell => {
+            // Only render cells within a 5-step radius of current view to save mobile performance
+            if (gridCrowd.length === 0) return true; // Fallback already filtered
+            const r = Math.floor(cell.lat / LAT_STEP);
+            const c = Math.floor(cell.lng / LNG_STEP);
+            const myRLat = Math.floor(pos.lat / LAT_STEP);
+            const myRLng = Math.floor(pos.lng / LNG_STEP);
+            return Math.abs(r - myRLat) <= 5 && Math.abs(c - myRLng) <= 5;
+          })
+          .map((cell, idx) => {
+            const isMe = cell.id === myCell;
+            const isRecommended = recommendedCell && cell.id === recommendedCell.id;
+            const isSelected = manualTarget && cell.id === manualTarget.cellId;
+            const opacity = isMe ? 0.6 : (cell.count > 0 ? 0.4 : 0.2);
+            let color = "#10b981"; // Green (Safe)
+            if (cell.count >= crowdLimit) color = "#ef4444"; // Red (High)
+            else if (cell.count > 0) color = "#f59e0b"; // Orange (Med)
 
-          if (isRecommended) color = "#3b82f6"; // Blue (Recommended)
+            if (isRecommended) color = "#3b82f6"; // Blue (Recommended)
 
-          return (
-            <Polygon
-              key={cell.id}
-              positions={[
-                [cell.lat, cell.lng],
-                [cell.lat + LAT_STEP, cell.lng],
-                [cell.lat + LAT_STEP, cell.lng + LNG_STEP],
-                [cell.lat, cell.lng + LNG_STEP]
-              ]}
-              pathOptions={{
-                color: isSelected ? "#3b82f6" : (isRecommended ? "#3b82f6" : "white"),
-                fillColor: color,
-                fillOpacity: opacity,
-                weight: isMe || isRecommended || isSelected ? 4 : 1,
-              }}
-              eventHandlers={{
-                click: (e) => {
-                  setManualTarget({
-                    lat: e.latlng.lat,
-                    lng: e.latlng.lng,
-                    cellId: cell.id
-                  });
-                  setForceSafePath(true);
-                }
-              }}
-            >
-              <Tooltip permanent={isMe || isRecommended || isSelected} direction="center" className="grid-tooltip">
-                <div className="text-center font-bold text-[10px]">
-                  {isMe ? "YOU" : (isSelected ? "TARGET" : `SEC ${String.fromCharCode(65 + idx)}`)}
-                  <br />
-                  <span className="opacity-70">👥 {cell.count}</span>
-                </div>
-              </Tooltip>
-            </Polygon>
-          );
-        })}
+            return (
+              <Polygon
+                key={cell.id}
+                positions={[
+                  [cell.lat, cell.lng],
+                  [cell.lat + LAT_STEP, cell.lng],
+                  [cell.lat + LAT_STEP, cell.lng + LNG_STEP],
+                  [cell.lat, cell.lng + LNG_STEP]
+                ]}
+                pathOptions={{
+                  color: isSelected ? "#3b82f6" : (isRecommended ? "#3b82f6" : "white"),
+                  fillColor: color,
+                  fillOpacity: opacity,
+                  weight: isMe || isRecommended || isSelected ? 4 : 1,
+                }}
+                eventHandlers={{
+                  click: (e) => {
+                    setManualTarget({
+                      lat: e.latlng.lat,
+                      lng: e.latlng.lng,
+                      cellId: cell.id
+                    });
+                    setForceSafePath(true);
+                  }
+                }}
+              >
+                <Tooltip permanent={isMe || isRecommended || isSelected} direction="center" className="grid-tooltip">
+                  <div className="text-center font-bold text-[10px]">
+                    {isMe ? "YOU" : (isSelected ? "TARGET" : `SEC ${String.fromCharCode(65 + idx)}`)}
+                    <br />
+                    <span className="opacity-70">👥 {cell.count}</span>
+                  </div>
+                </Tooltip>
+              </Polygon>
+            );
+          })}
 
         {/* Family Members */}
         {family.map((member) => (
