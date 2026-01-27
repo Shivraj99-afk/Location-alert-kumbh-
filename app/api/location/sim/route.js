@@ -75,9 +75,9 @@ export async function GET(req) {
     const myRLat = Math.floor(lat / LAT_STEP);
     const myRLng = Math.floor(lng / LNG_STEP);
 
-    // Increase snippet size for wide safety detours (15x15)
-    for (let dr = -7; dr <= 7; dr++) {
-        for (let dc = -7; dc <= 7; dc++) {
+    // Increased snippet size for wide safety detours (21x21)
+    for (let dr = -10; dr <= 10; dr++) {
+        for (let dc = -10; dc <= 10; dc++) {
             const r = myRLat + dr;
             const c = myRLng + dc;
             const id = `${r},${c}`;
@@ -122,7 +122,7 @@ export async function GET(req) {
 
     // 4. Calculate safest path
     let safestPath = null;
-    
+
     // Determine target: manual target takes priority, then recommendation
     let target = null;
     if (!isNaN(targetLat) && !isNaN(targetLng)) {

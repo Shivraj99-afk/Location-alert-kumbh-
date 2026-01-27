@@ -81,13 +81,16 @@ export default function SimulationTracker() {
         const sync = async () => {
             const currentPos = posRef.current || pos;
             if (!currentPos) return;
-            
+
             setIsLoading(true);
             try {
-                await fetch("/api/location/update", {
-                    method: "POST",
-                    body: JSON.stringify({ userId, lat: currentPos.lat, lng: currentPos.lng }),
-                });
+                /* 
+                   Location update disabled to save resources as requested.
+                   await fetch("/api/location/update", {
+                       method: "POST",
+                       body: JSON.stringify({ userId, lat: currentPos.lat, lng: currentPos.lng }),
+                   });
+                */
 
                 const query = new URLSearchParams({
                     userId,
@@ -102,13 +105,13 @@ export default function SimulationTracker() {
                 }
 
                 const res = await fetch(`/api/location/sim?${query.toString()}`);
-                
+
                 if (!res.ok) {
                     throw new Error(`API error: ${res.status}`);
                 }
-                
+
                 const data = await res.json();
-                
+
                 setNearby(data.nearby || []);
                 setGridCrowd(data.gridCrowd || []);
                 setMyCell(data.myCell);
@@ -116,32 +119,32 @@ export default function SimulationTracker() {
                 setAlert(data.alert);
                 setRecommendedCell(data.recommendation);
                 setCrowdLimit(data.crowdLimit);
-                
+
                 if (data.safestPath) {
                     setNavigationPath(data.safestPath);
                 } else if (!manualTarget && !data.recommendation) {
                     setNavigationPath(null);
                 }
-            } catch (err) { 
-                console.error("Sync error:", err); 
+            } catch (err) {
+                console.error("Sync error:", err);
             } finally {
                 setIsLoading(false);
             }
         };
         sync();
-        const interval = setInterval(sync, 4000);
-        return () => clearInterval(interval);
-    }, [userId, pos, forceSafePath, manualTarget]);
+        // Removed Interval: Only sync when user explicitly changes target or mode parameters.
+        // This stops "too many requests" and minimizes resource usage.
+    }, [userId, forceSafePath, manualTarget]);
 
     const handleCellClick = (e, cell) => {
         // Set the center of the cell as the target
         const targetLat = cell.lat + LAT_STEP / 2;
         const targetLng = cell.lng + LNG_STEP / 2;
-        
-        setManualTarget({ 
-            lat: targetLat, 
-            lng: targetLng, 
-            cellId: cell.id 
+
+        setManualTarget({
+            lat: targetLat,
+            lng: targetLng,
+            cellId: cell.id
         });
     };
 
@@ -170,17 +173,17 @@ export default function SimulationTracker() {
 
                 <div className="flex gap-2 pointer-events-auto">
                     <button
-                        onClick={() => { 
-                            setForceSafePath(!forceSafePath); 
-                            if (!forceSafePath) setManualTarget(null); 
+                        onClick={() => {
+                            setForceSafePath(!forceSafePath);
+                            if (!forceSafePath) setManualTarget(null);
                         }}
                         className={`flex-1 py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-xl ${forceSafePath ? 'bg-red-500 text-white' : 'bg-white text-black hover:bg-zinc-200'}`}
                     >
                         {forceSafePath ? '🧭 AUTO RE-ROUTE: ON' : '🧭 TRIGGER SAFE PATH'}
                     </button>
                     {manualTarget && (
-                        <button 
-                            onClick={clearTarget} 
+                        <button
+                            onClick={clearTarget}
                             className="w-12 h-12 bg-zinc-800 text-white rounded-2xl flex items-center justify-center shadow-xl hover:bg-zinc-700"
                         >
                             ✕
@@ -223,9 +226,9 @@ export default function SimulationTracker() {
                 <Polygon positions={testPolygon} pathOptions={{ color: "blue", weight: 2, fillOpacity: 0.05, dashArray: "5, 10" }} />
 
                 {/* Grid cells */}
-                {(gridCrowd.length > 0 ? gridCrowd : Array.from({ length: 49 }).map((_, i) => {
-                    const r = Math.floor(i / 7) - 3;
-                    const c = (i % 7) - 3;
+                {(gridCrowd.length > 0 ? gridCrowd : Array.from({ length: 441 }).map((_, i) => {
+                    const r = Math.floor(i / 21) - 10;
+                    const c = (i % 21) - 10;
                     const myRLat = Math.floor(pos.lat / LAT_STEP);
                     const myRLng = Math.floor(pos.lng / LNG_STEP);
                     const rid = (myRLat + r);
@@ -292,13 +295,13 @@ export default function SimulationTracker() {
 
                 {/* User Dot */}
                 <Circle center={[pos.lat, pos.lng]} radius={4} pathOptions={{ color: "white", fillColor: "#3b82f6", fillOpacity: 1, weight: 2 }} />
-                
+
                 {/* Target Marker */}
                 {manualTarget && (
-                    <Circle 
-                        center={[manualTarget.lat, manualTarget.lng]} 
-                        radius={6} 
-                        pathOptions={{ color: "#3b82f6", fillColor: "#ffffff", fillOpacity: 1, weight: 3 }} 
+                    <Circle
+                        center={[manualTarget.lat, manualTarget.lng]}
+                        radius={6}
+                        pathOptions={{ color: "#3b82f6", fillColor: "#ffffff", fillOpacity: 1, weight: 3 }}
                     />
                 )}
             </MapContainer>

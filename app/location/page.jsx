@@ -51,6 +51,7 @@ export default function LocationPage() {
   const [crowdLimit, setCrowdLimit] = useState(2);
   const [forceSafePath, setForceSafePath] = useState(false);
   const [manualTarget, setManualTarget] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Fix leaflet icons
   useEffect(() => {
@@ -90,6 +91,7 @@ export default function LocationPage() {
       const currentPos = posRef.current;
       if (!currentPos) return;
 
+      setIsLoading(true);
       try {
         // Update my location
         await fetch("/api/location/update", {
@@ -125,6 +127,8 @@ export default function LocationPage() {
         setLastSync(new Date());
       } catch (err) {
         console.error("Sync error:", err);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -214,6 +218,7 @@ export default function LocationPage() {
               <span>RANK</span>
               <span className="text-yellow-400 font-bold underline">#{myRank}</span>
             </div>
+            {isLoading && <div className="text-[10px] text-green-400 animate-pulse font-bold mt-1">⟳ Calculating Route...</div>}
           </div>
         </div>
       </div>
@@ -268,9 +273,9 @@ export default function LocationPage() {
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
         {/* Dynamic Grid Rendering */}
-        {(gridCrowd.length > 0 ? gridCrowd : Array.from({ length: 49 }).map((_, i) => {
-          const r = Math.floor(i / 7) - 3;
-          const c = (i % 7) - 3;
+        {(gridCrowd.length > 0 ? gridCrowd : Array.from({ length: 441 }).map((_, i) => { // 21x21 grid
+          const r = Math.floor(i / 21) - 10; // -10 to +10
+          const c = (i % 21) - 10; // -10 to +10
           const myRLat = Math.floor(pos.lat / LAT_STEP);
           const myRLng = Math.floor(pos.lng / LNG_STEP);
           const rid = (myRLat + r);
