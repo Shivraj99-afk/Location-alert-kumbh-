@@ -52,17 +52,10 @@ export async function GET(req) {
     const cellId = getCellId(u.lat, u.lng);
     gridCrowd[cellId] = (gridCrowd[cellId] || 0) + 1;
 
-    const me = users.get(userId);
-    const myGroupId = me?.groupId;
-
     if (id !== userId) {
-      if (myGroupId && u.groupId === myGroupId) {
-        family.push({ id, lat: u.lat, lng: u.lng, name: u.name || "Family Member" });
-      } else {
-        const d = distance(mePos, u);
-        if (d <= 500) {
-          nearby.push({ id, lat: u.lat, lng: u.lng });
-        }
+      const d = distance(mePos, u);
+      if (d <= 500) {
+        nearby.push({ id, lat: u.lat, lng: u.lng });
       }
     }
   }
@@ -154,7 +147,6 @@ export async function GET(req) {
     alert: isCrowded && myRank > settings.crowdLimit,
     recommendation,
     safestPath,
-    family,
     crowdLimit: settings.crowdLimit
   });
 }
