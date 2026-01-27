@@ -31,17 +31,18 @@ export async function GET(req) {
     const gridCrowd = {};
 
     // 1. INJECT DUMMY CROWD DATA (Testing Simulation)
-    // Dynamic injection based on user region
-    if (lat > 19.97 && lat < 19.98) {
-        // Global Simulation Test Area
-        const dummyCells = ["44384,147488", "44384,147489", "44385,147488", "44385,147489"];
-        dummyCells.forEach(id => { gridCrowd[id] = settings.crowdLimit + 5; });
-    } else if (lat > 19.96 && lat < 19.97) {
-        // Nashik-B Simulation Area
-        // Injecting a cluster around [19.964, 73.668]
-        const nashikDummies = ["44364,147336", "44364,147337", "44365,147336", "44365,147337"];
-        nashikDummies.forEach(id => { gridCrowd[id] = settings.crowdLimit + 5; });
-    }
+    // We'll make specific cells around the Nashik test area "RED"
+    // Area approx: Lat 19.971 - 19.974, Lng 73.743 - 73.746
+    const dummyCells = [
+        "44384,147488", // Near center
+        "44384,147489", // Right of center
+        "44385,147488", // Above center
+        "44385,147489"  // Top right
+    ];
+
+    dummyCells.forEach(id => {
+        gridCrowd[id] = settings.crowdLimit + 5; // Force RED
+    });
 
     // 2. Process real users
     const nearby = [];

@@ -84,11 +84,19 @@ export default function SimulationTracker() {
 
             setIsLoading(true);
             try {
+                /* 
+                   Location update disabled to save resources as requested.
+                   await fetch("/api/location/update", {
+                       method: "POST",
+                       body: JSON.stringify({ userId, lat: currentPos.lat, lng: currentPos.lng }),
+                   });
+                */
+
                 const query = new URLSearchParams({
                     userId,
                     lat: currentPos.lat.toString(),
                     lng: currentPos.lng.toString(),
-                    forceSafePath: "true" // Always calculate a safe path
+                    forceSafePath: forceSafePath.toString()
                 });
 
                 if (manualTarget) {
@@ -112,12 +120,10 @@ export default function SimulationTracker() {
                 setRecommendedCell(data.recommendation);
                 setCrowdLimit(data.crowdLimit);
 
-                // Always show a safe path
-                if (data.safestPath && data.safestPath.length > 0) {
+                if (data.safestPath) {
                     setNavigationPath(data.safestPath);
-                } else if (data.recommendation) {
-                    // Fallback: draw direct line to recommendation
-                    setNavigationPath([[currentPos.lat, currentPos.lng], [data.recommendation.lat + LAT_STEP / 2, data.recommendation.lng + LNG_STEP / 2]]);
+                } else if (!manualTarget && !data.recommendation) {
+                    setNavigationPath(null);
                 }
             } catch (err) {
                 console.error("Sync error:", err);
@@ -126,9 +132,9 @@ export default function SimulationTracker() {
             }
         };
         sync();
-        const interval = setInterval(sync, 3000); // Refresh every 3s for live demo
-        return () => clearInterval(interval);
-    }, [userId, forceSafePath, manualTarget, pos]);
+        // Removed Interval: Only sync when user explicitly changes target or mode parameters.
+        // This stops "too many requests" and minimizes resource usage.
+    }, [userId, forceSafePath, manualTarget]);
 
     const handleCellClick = (e, cell) => {
         // Set the center of the cell as the target
@@ -214,113 +220,78 @@ export default function SimulationTracker() {
             )}
 
             <MapContainer center={[pos.lat, pos.lng]} zoom={18} className="h-full w-full z-0" zoomControl={false}>
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" className="map-tiles" />
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
                 {/* Test Boundary */}
                 <Polygon positions={testPolygon} pathOptions={{ color: "blue", weight: 2, fillOpacity: 0.05, dashArray: "5, 10" }} />
 
-                {/* Grid cells - 9x9 Centered around User */}
-                {(() => {
+                {/* Grid cells */}
+                {(gridCrowd.length > 0 ? gridCrowd : Array.from({ length: 441 }).map((_, i) => {
+                    const r = Math.floor(i / 21) - 10;
+                    const c = (i % 21) - 10;
                     const myRLat = Math.floor(pos.lat / LAT_STEP);
                     const myRLng = Math.floor(pos.lng / LNG_STEP);
+                    const rid = (myRLat + r);
+                    const cid = (myRLng + c);
+                    return {
+                        id: `${rid},${cid}`,
+                        lat: rid * LAT_STEP,
+                        lng: cid * LNG_STEP,
+                        count: 0
+                    };
+                })).map((cell, idx) => {
+                    const isMe = cell.id === myCell;
+                    const isRec = recommendedCell && cell.id === recommendedCell.id;
+                    const isSel = manualTarget && cell.id === manualTarget.cellId;
+                    const isSimRed = cell.count > crowdLimit;
 
-                    // Create set of displayed cell IDs for quick check
-                    const displayedCells = [];
-                    for (let r = -4; r <= 4; r++) {
-                        for (let c = -4; c <= 4; c++) {
-                            const rid = myRLat + r;
-                            const cid = myRLng + c;
-                            const id = `${rid},${cid}`;
+                    let color = "#10b981";
+                    if (isSimRed) color = "#ef4444";
+                    else if (cell.count > 0) color = "#f59e0b";
+                    if (isRec || isSel) color = "#3b82f6";
 
-                            // Find existing data or create dummy
-                            let cellData = gridCrowd.find(gc => gc.id === id);
-                            if (!cellData) {
-                                cellData = {
-                                    id,
-                                    lat: rid * LAT_STEP,
-                                    lng: cid * LNG_STEP,
-                                    count: 0
-                                };
-                            }
+                    return (
+                        <Polygon
+                            key={cell.id}
+                            positions={[
+                                [cell.lat, cell.lng],
+                                [cell.lat + LAT_STEP, cell.lng],
+                                [cell.lat + LAT_STEP, cell.lng + LNG_STEP],
+                                [cell.lat, cell.lng + LNG_STEP]
+                            ]}
+                            pathOptions={{
+                                color: isRec || isSel ? "#3b82f6" : "white",
+                                fillColor: color,
+                                fillOpacity: isMe ? 0.6 : (isSimRed ? 0.5 : 0.35),
+                                weight: isMe || isRec || isSel ? 3 : 0.5
+                            }}
+                            eventHandlers={{
+                                click: (e) => handleCellClick(e, cell)
+                            }}
+                        >
+                            <Tooltip permanent={isMe || isRec || isSel} direction="center" className="sim-tooltip">
+                                <div className="text-[9px] font-black text-white text-shadow">
+                                    {isMe ? 'YOU' : (isSel ? 'TARGET' : (isRec ? 'RECO' : `SEC ${idx}`))}
+                                    <br />👥 {cell.count}
+                                </div>
+                            </Tooltip>
+                        </Polygon>
+                    );
+                })}
 
-                            // Simulation Override: Inject Red Zone just ahead (North) of user
-                            if (r === 2 && c === 0) {
-                                cellData.count = crowdLimit + 10;
-                                cellData.isDangerZone = true;
-                            }
-
-                            displayedCells.push(cellData);
-                        }
-                    }
-
-                    return displayedCells.map((cell, idx) => {
-                        const isMe = cell.id === myCell;
-                        const isRec = recommendedCell && cell.id === recommendedCell.id;
-                        const isSel = manualTarget && cell.id === manualTarget.cellId;
-                        const isSimRed = cell.count > crowdLimit;
-
-                        let color = "#10b981"; // Safe (Green)
-                        if (isSimRed) color = "#ef4444"; // Danger (Red)
-                        else if (cell.count > 0) color = "#f59e0b"; // Warning (Yellow)
-                        if (isRec || isSel) color = "#3b82f6"; // Recommended/Selected (Blue)
-
-                        return (
-                            <Polygon
-                                key={cell.id}
-                                positions={[
-                                    [cell.lat, cell.lng],
-                                    [cell.lat + LAT_STEP, cell.lng],
-                                    [cell.lat + LAT_STEP, cell.lng + LNG_STEP],
-                                    [cell.lat, cell.lng + LNG_STEP]
-                                ]}
-                                pathOptions={{
-                                    color: isMe ? "white" : (isRec || isSel ? "#3b82f6" : "rgba(255,255,255,0.1)"),
-                                    fillColor: color,
-                                    fillOpacity: isMe ? 0.7 : (isSimRed ? 0.6 : 0.3),
-                                    weight: isMe || isRec || isSel ? 3 : 1
-                                }}
-                                eventHandlers={{
-                                    click: (e) => handleCellClick(e, cell)
-                                }}
-                            >
-                                <Tooltip permanent={isMe || isRec || isSel || cell.isDangerZone} direction="center" className="sim-tooltip">
-                                    <div className="text-[9px] font-black text-white text-shadow text-center">
-                                        {isMe ? 'YOU' : (isSel ? 'TARGET' : (isRec ? 'SAFE DEV' : (cell.isDangerZone ? 'DANGER' : `SEC ${idx}`)))}
-                                        <br />{isSimRed ? '⚠️' : '👥'} {cell.count}
-                                    </div>
-                                </Tooltip>
-                            </Polygon>
-                        );
-                    });
-                })()}
-
-                {/* Safest AI Route Visualization - Simple & High Visibility */}
+                {/* Safest AI Route Visualization */}
                 {navigationPath && navigationPath.length > 0 && (
                     <>
                         <Polyline
                             positions={navigationPath}
-                            pathOptions={{ color: "#3b82f6", weight: 6, lineCap: "round", opacity: 0.6, className: "glow-path" }}
+                            pathOptions={{ color: "#3b82f6", weight: 8, lineCap: "round", opacity: 0.3, className: "glow-path" }}
                         />
                         <Polyline
                             positions={navigationPath}
-                            pathOptions={{ color: "#ffffff", weight: 2, lineCap: "round", opacity: 1, dashArray: "10, 10" }}
+                            pathOptions={{ color: "#ffffff", weight: 2, lineCap: "round", opacity: 0.8, dashArray: "1, 12" }}
                         />
                     </>
                 )}
-
-                {/* Simulated Crowd Bots (Nearby) - More visible */}
-                {nearby.map((bot, idx) => (
-                    <Circle
-                        key={`bot-${idx}`}
-                        center={[bot.lat, bot.lng]}
-                        radius={5}
-                        pathOptions={{ color: '#fef08a', fillColor: '#ef4444', fillOpacity: 1, weight: 2, className: 'bot-pulse' }}
-                    >
-                        <Tooltip permanent direction="top" className="sim-tooltip">
-                            <div className="text-[8px] font-black text-white bg-red-600 px-1.5 py-0.5 rounded">👤</div>
-                        </Tooltip>
-                    </Circle>
-                ))}
 
                 {/* User Dot */}
                 <Circle center={[pos.lat, pos.lng]} radius={4} pathOptions={{ color: "white", fillColor: "#3b82f6", fillOpacity: 1, weight: 2 }} />
@@ -339,13 +310,6 @@ export default function SimulationTracker() {
                 .sim-tooltip { background: transparent !important; border: none !important; box-shadow: none !important; }
                 .text-shadow { text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
                 .leaflet-container { background: #000 !important; }
-                .map-tiles { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
-                .bot-pulse { animation: bot-glow 1.5s infinite; }
-                @keyframes bot-glow {
-                    0% { stroke-opacity: 0.5; stroke-width: 1.5; }
-                    50% { stroke-opacity: 1; stroke-width: 4; }
-                    100% { stroke-opacity: 0.5; stroke-width: 1.5; }
-                }
                 @keyframes slide-in-from-bottom-5 {
                     from { transform: translateY(20px) translateX(-50%); opacity: 0; }
                     to { transform: translateY(0) translateX(-50%); opacity: 1; }
