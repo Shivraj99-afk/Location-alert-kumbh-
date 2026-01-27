@@ -67,7 +67,7 @@ const crowdLevels = {
     3: { color: "#ef4444", label: "Heavy", fillColor: "#ef4444" }
 };
 
-export default function GenericSectorMap({ points, mapCenter, namePrefix = "Zone" }) {
+export default function GenericSectorMap({ points, mapCenter, namePrefix = "Zone", rows = 5, cols = 5 }) {
     const [selectedSectionId, setSelectedSectionId] = useState(null);
     const [sectionCrowd, setSectionCrowd] = useState({});
     const [image, setImage] = useState(null);
@@ -87,7 +87,7 @@ export default function GenericSectorMap({ points, mapCenter, namePrefix = "Zone
         });
     }, []);
 
-    const gridSections = useMemo(() => generateGridSections(points, 5, 5), [points]);
+    const gridSections = useMemo(() => generateGridSections(points, rows, cols), [points, rows, cols]);
 
     // Sync shared data every 3 seconds
     useEffect(() => {
@@ -276,8 +276,8 @@ export default function GenericSectorMap({ points, mapCenter, namePrefix = "Zone
                                     <div className="flex items-center justify-between bg-gray-50 p-3 rounded-xl">
                                         <span className="text-xs font-bold text-gray-500 uppercase tracking-tight">AI Detected</span>
                                         <span className={`px-4 py-1 rounded-full text-[10px] font-black uppercase ${detectedLevel === 1 ? 'bg-green-100 text-green-600' :
-                                                detectedLevel === 2 ? 'bg-yellow-100 text-yellow-600' :
-                                                    'bg-red-100 text-red-600'
+                                            detectedLevel === 2 ? 'bg-yellow-100 text-yellow-600' :
+                                                'bg-red-100 text-red-600'
                                             }`}>
                                             {crowdLevels[detectedLevel].label} Density
                                         </span>
@@ -287,8 +287,8 @@ export default function GenericSectorMap({ points, mapCenter, namePrefix = "Zone
                                         onClick={submitReport}
                                         disabled={success}
                                         className={`w-full py-4 rounded-xl font-black text-sm uppercase tracking-widest transition-all ${success
-                                                ? 'bg-green-500 text-white'
-                                                : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200'
+                                            ? 'bg-green-500 text-white'
+                                            : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-200'
                                             }`}
                                     >
                                         {success ? '✓ Verified & Reported' : 'Confirm Forecast'}

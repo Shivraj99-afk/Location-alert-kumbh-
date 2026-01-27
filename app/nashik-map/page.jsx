@@ -11,7 +11,7 @@ const customPoints = [
     [19.968802286296103, 73.67109775543214],
     [19.961310002131995, 73.67234230041505],
     [19.961188830191443, 73.66558313369752],
-    [19.969024424059235,73.67148399353029]
+    [19.96777237076012, 73.66590499877931]
 ];
 
 const center = [19.965, 73.669];
@@ -22,6 +22,8 @@ export default function CustomSectorPage() {
             points={customPoints}
             mapCenter={center}
             namePrefix="Nashik-B"
+            rows={12}
+            cols={12}
         />
     );
 }
