@@ -168,7 +168,7 @@ export default function NashikSimMap({ points, mapCenter, namePrefix = "Nashik-S
                     >
                         {forceSafePath ? '🧭 AI PATH: TRIGGERED' : '🧭 GENERATE SAFEST PATH'}
                     </button>
-                    {manualTarget && (
+                    {manualTarget ? (
                         <button
                             onClick={() => { setManualTarget(null); setNavigationPath(null); }}
                             className="w-14 h-14 bg-zinc-800 text-white rounded-2xl flex items-center justify-center shadow-xl hover:bg-zinc-700 border border-white/5"
@@ -176,12 +176,12 @@ export default function NashikSimMap({ points, mapCenter, namePrefix = "Nashik-S
                             ✕
                         </button>
                     ) : (
-                    <button
-                        onClick={() => window.location.reload()}
-                        className="w-14 h-14 bg-zinc-800 text-white rounded-2xl flex items-center justify-center shadow-xl hover:bg-zinc-700 border border-white/5"
-                    >
-                        ↻
-                    </button>
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="w-14 h-14 bg-zinc-800 text-white rounded-2xl flex items-center justify-center shadow-xl hover:bg-zinc-700 border border-white/5"
+                        >
+                            ↻
+                        </button>
                     )}
                 </div>
             </div>
