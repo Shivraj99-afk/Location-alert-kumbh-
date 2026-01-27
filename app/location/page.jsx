@@ -137,9 +137,17 @@ export default function LocationPage() {
 
     const fetchRoute = async () => {
       try {
-        const target = manualTarget || recommendedCell;
-        const destLat = target.lat + LAT_STEP / 2;
-        const destLng = target.lng + LNG_STEP / 2;
+        let destLat, destLng;
+        if (manualTarget) {
+          destLat = manualTarget.lat;
+          destLng = manualTarget.lng;
+        } else if (recommendedCell) {
+          destLat = recommendedCell.lat + LAT_STEP / 2;
+          destLng = recommendedCell.lng + LNG_STEP / 2;
+        } else {
+          return;
+        }
+
         const url = `https://router.project-osrm.org/route/v1/walking/${pos.lng},${pos.lat};${destLng},${destLat}?overview=full&geometries=geojson`;
         const res = await fetch(url);
         const data = await res.json();
@@ -152,7 +160,7 @@ export default function LocationPage() {
       }
     };
     fetchRoute();
-  }, [recommendedCell?.id, manualTarget?.id]); // Only re-fetch if destination changes
+  }, [recommendedCell?.id, manualTarget?.lat, manualTarget?.lng]); // Only re-fetch if destination point changes
 
   if (!pos) {
     return (
@@ -245,9 +253,9 @@ export default function LocationPage() {
             </div>
             <div className="bg-white/10 rounded-2xl p-4 flex justify-between items-center">
               <span className="text-xs font-bold uppercase tracking-widest opacity-60 text-white">Target sector</span>
-              <span className="font-mono bg-white text-blue-600 px-3 py-1 rounded-lg text-sm font-black">
+              <span class="font-mono bg-white text-blue-600 px-3 py-1 rounded-lg text-sm font-black">
                 SECTOR {manualTarget
-                  ? String.fromCharCode(64 + gridCrowd.findIndex(c => c.id === manualTarget.id) + 1)
+                  ? String.fromCharCode(64 + gridCrowd.findIndex(c => c.id === manualTarget.cellId) + 1)
                   : String.fromCharCode(64 + gridCrowd.indexOf(recommendedCell) + 1)}
               </span>
             </div>
@@ -276,7 +284,7 @@ export default function LocationPage() {
         {gridCrowd.map((cell, idx) => {
           const isMe = cell.id === myCell;
           const isRecommended = recommendedCell && cell.id === recommendedCell.id;
-          const isSelected = manualTarget && cell.id === manualTarget.id;
+          const isSelected = manualTarget && cell.id === manualTarget.cellId;
           const opacity = isMe ? 0.6 : 0.3;
           let color = "#10b981"; // Green (Safe)
           if (cell.count >= crowdLimit) color = "#ef4444"; // Red (High)
@@ -300,8 +308,12 @@ export default function LocationPage() {
                 weight: isMe || isRecommended || isSelected ? 4 : 1,
               }}
               eventHandlers={{
-                click: () => {
-                  setManualTarget(cell);
+                click: (e) => {
+                  setManualTarget({
+                    lat: e.latlng.lat,
+                    lng: e.latlng.lng,
+                    cellId: cell.id
+                  });
                   setForceSafePath(true);
                 }
               }}
@@ -341,12 +353,15 @@ export default function LocationPage() {
           </>
         )}
 
-        {/* Off-Road Guidance Line (Direct Path) */}
+        {/* Off-Road Guidance Line (Direct Path to Precise Point) */}
         {(manualTarget || recommendedCell) && (
           <Polyline
             positions={[
               [pos.lat, pos.lng],
-              [(manualTarget || recommendedCell).lat + LAT_STEP / 2, (manualTarget || recommendedCell).lng + LNG_STEP / 2]
+              [
+                manualTarget ? manualTarget.lat : recommendedCell.lat + LAT_STEP / 2,
+                manualTarget ? manualTarget.lng : recommendedCell.lng + LNG_STEP / 2
+              ]
             ]}
             pathOptions={{ color: "#3b82f6", weight: 2, dashArray: "10, 20", opacity: 0.8 }}
           />
