@@ -74,7 +74,7 @@ export default function LostFeedPage() {
         fetchReports();
         setLastSync(new Date());
 
-        // Real-time updates
+        // Real-time updates (WebSocket based, no Vercel cost)
         const channel = supabase
             .channel("lost_updates")
             .on("postgres_changes", { event: "*", schema: "public", table: "lost_reports" }, () => { fetchReports(); setLastSync(new Date()); })
@@ -82,15 +82,8 @@ export default function LostFeedPage() {
             .on("postgres_changes", { event: "*", schema: "public", table: "volunteers" }, () => { fetchReports(); setLastSync(new Date()); })
             .subscribe();
 
-        // Fallback Auto-refresh every 15 seconds
-        const refreshId = setInterval(() => {
-            fetchReports();
-            setLastSync(new Date());
-        }, 15000);
-
         return () => {
             supabase.removeChannel(channel);
-            clearInterval(refreshId);
         };
     }, []);
 
