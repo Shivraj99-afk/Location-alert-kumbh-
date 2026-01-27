@@ -268,11 +268,24 @@ export default function LocationPage() {
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
         {/* Dynamic Grid Rendering */}
-        {gridCrowd.map((cell, idx) => {
+        {(gridCrowd.length > 0 ? gridCrowd : Array.from({ length: 49 }).map((_, i) => {
+          const r = Math.floor(i / 7) - 3;
+          const c = (i % 7) - 3;
+          const myRLat = Math.floor(pos.lat / LAT_STEP);
+          const myRLng = Math.floor(pos.lng / LNG_STEP);
+          const rid = (myRLat + r);
+          const cid = (myRLng + c);
+          return {
+            id: `${rid},${cid}`,
+            lat: rid * LAT_STEP,
+            lng: cid * LNG_STEP,
+            count: 0
+          };
+        })).map((cell, idx) => {
           const isMe = cell.id === myCell;
           const isRecommended = recommendedCell && cell.id === recommendedCell.id;
           const isSelected = manualTarget && cell.id === manualTarget.cellId;
-          const opacity = isMe ? 0.6 : 0.3;
+          const opacity = isMe ? 0.6 : (cell.count > 0 ? 0.4 : 0.2);
           let color = "#10b981"; // Green (Safe)
           if (cell.count >= crowdLimit) color = "#ef4444"; // Red (High)
           else if (cell.count > 0) color = "#f59e0b"; // Orange (Med)
