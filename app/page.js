@@ -1,316 +1,208 @@
 "use client";
 
+import { motion } from "framer-motion";
 import {
   Users,
   MapPin,
   Camera,
   Shield,
   Navigation,
+  Smartphone,
   Activity,
-  HeartHandshake,
-  Info,
-  ArrowRight,
-  Search,
-  Stethoscope,
+  CheckCircle2,
+  ChevronRight,
+  QrCode,
   Utensils,
-  Hotel,
-  ShoppingBag
+  Navigation2
 } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import Image from "next/image";
 
 export default function LandingPage() {
-  const [page, setPage] = useState(1);
-
-  // Common Button Component for large, easy-to-click buttons
-  const BigButton = ({ href, icon: Icon, text, subtext, color = "bg-orange-600" }) => (
-    <Link href={href} className={`w-full ${color} text-white p-6 rounded-2xl shadow-lg flex items-center gap-6 active:scale-95 transition-transform border-b-4 border-black/20 text-left`}>
-      <div className="bg-white/20 p-4 rounded-xl">
-        <Icon className="w-8 h-8 md:w-10 md:h-10 text-white" />
-      </div>
-      <div>
-        <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight">{text}</h3>
-        {subtext && <p className="text-sm md:text-base font-bold opacity-90">{subtext}</p>}
-      </div>
-    </Link>
-  );
-
   return (
-    <div className="min-h-screen bg-[#FFFDF5] text-[#1A1A1A] font-sans">
-      {/* Logo/Header Bar */}
-      <header className="bg-white border-b-4 border-orange-500 p-4 sticky top-0 z-50 shadow-md">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-orange-600 rounded-lg">
-              <Shield className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black uppercase text-orange-600 leading-none">Kumbh Sahayak</h1>
-              <p className="text-[10px] font-bold text-blue-900 uppercase tracking-widest mt-0.5">Nashik Mela 2027</p>
-            </div>
+    <div className="min-h-screen bg-white text-[#1A1A1A] font-sans selection:bg-orange-100 overflow-x-hidden">
+
+      {/* 1. Navbar */}
+      <nav className="sticky top-0 z-[100] bg-white border-b border-gray-100 flex items-center justify-between px-6 py-4 max-w-7xl mx-auto">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg shadow-sm">
+            <Shield className="w-6 h-6 text-white" />
           </div>
-          {page > 1 && (
-            <button
-              onClick={() => setPage(1)}
-              className="bg-blue-900 text-white px-4 py-2 rounded-xl font-bold text-sm uppercase flex items-center gap-2"
-            >
-              ← Home
-            </button>
-          )}
+          <span className="text-xl font-bold tracking-tight text-blue-900">Kumbh Sahayak</span>
         </div>
-      </header>
+        <div className="hidden md:flex items-center gap-6">
+          <Link href="/" className="text-sm font-bold text-orange-600 px-4 py-2 bg-orange-50 rounded-full">Home</Link>
+          <Link href="/family" className="text-sm font-bold text-gray-500 hover:text-orange-600">Family Radar</Link>
+          <Link href="/business-map" className="text-sm font-bold text-gray-500 hover:text-orange-600">Businesses</Link>
+          <Link href="/location" className="text-sm font-bold text-gray-500 hover:text-orange-600">Live Map</Link>
+        </div>
+      </nav>
 
-      {/* Page 1: Main Landing */}
-      {page === 1 && (
-        <main className="max-w-4xl mx-auto p-6 space-y-8 pb-32">
-          <section className="text-center py-8">
-            <h2 className="text-3xl md:text-5xl font-black text-blue-900 leading-tight mb-4">
-              Safe movement and group protection for pilgrims
-            </h2>
-            <div className="flex flex-wrap justify-center gap-3 text-sm font-bold text-orange-700 uppercase">
-              <span>English</span> ∙ <span>हिंदी</span> ∙ <span>मराठी</span>
-            </div>
-          </section>
-
-          {/* Three Main Sections */}
-          <div className="space-y-6">
-            {/* Crowd Safety */}
-            <div className="bg-white border-2 border-gray-200 rounded-3xl p-6 shadow-sm">
-              <div className="flex items-start gap-4 mb-6">
-                <div className="p-3 bg-green-100 rounded-2xl text-green-700">
-                  <Activity className="w-8 h-8" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-2xl font-black text-blue-900">🧭 Crowd Safety / भीड़ सुरक्षा</h3>
-                  <p className="text-lg font-bold text-gray-600 leading-snug mt-1 italic">
-                    "Shows crowded and safe areas. Guides you to less crowded routes."
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setPage(2)}
-                className="w-full bg-green-600 text-white py-6 rounded-2xl text-xl font-black uppercase flex items-center justify-center gap-3 shadow-lg border-b-4 border-green-800"
-              >
-                Get Started / शुरू करें <ArrowRight className="w-6 h-6" />
-              </button>
-            </div>
-
-            {/* Group Safety */}
-            <div className="bg-white border-2 border-gray-200 rounded-3xl p-6 shadow-sm">
-              <div className="flex items-start gap-4 mb-6">
-                <div className="p-3 bg-blue-100 rounded-2xl text-blue-700">
-                  <Users className="w-8 h-8" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex justify-between items-start">
-                    <h3 className="text-2xl font-black text-blue-900">👨‍👩‍👧 Group Safety / परिवार सुरक्षा</h3>
-                    <span className="bg-orange-600 text-white px-3 py-1 rounded-full text-sm font-black italic">₹30 ONLY</span>
-                  </div>
-                  <p className="text-lg font-bold text-gray-600 leading-snug mt-1 italic">
-                    "Do not get separated from family. Get alerts if someone goes missing."
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setPage(4)}
-                className="w-full bg-blue-900 text-white py-6 rounded-2xl text-xl font-black uppercase flex items-center justify-center gap-3 shadow-lg border-b-4 border-blue-950"
-              >
-                Setup Group / ग्रुप बनाएँ <ArrowRight className="w-6 h-6" />
-              </button>
-            </div>
-
-            {/* Nearby Services */}
-            <div className="bg-white border-2 border-gray-200 rounded-3xl p-6 shadow-sm">
-              <div className="flex items-start gap-4 mb-6">
-                <div className="p-3 bg-orange-100 rounded-2xl text-orange-700">
-                  <MapPin className="w-8 h-8" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-2xl font-black text-blue-900">📍 Nearby Services / आस-पास की सेवाएँ</h3>
-                  <p className="text-lg font-bold text-gray-600 leading-snug mt-1 italic">
-                    "Find food, water, hotels, stalls nearby."
-                  </p>
-                </div>
-              </div>
-              <Link
-                href="/business-map"
-                className="w-full bg-orange-600 text-white py-6 rounded-2xl text-xl font-black uppercase flex items-center justify-center gap-3 shadow-lg border-b-4 border-orange-800"
-              >
-                View Nearby / आस-पास देखें <ArrowRight className="w-6 h-6" />
+      {/* 2. Hero Section (Inspired by Second Image) */}
+      <section className="relative bg-gradient-to-br from-[#E65100] via-[#C62828] to-[#1A237E] text-white py-16 md:py-24 px-6 overflow-hidden">
+        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 items-center relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <h1 className="text-5xl md:text-7xl font-black leading-tight tracking-tighter mb-6 uppercase italic">
+              AI-Powered Safety <br />
+              for <span className="text-yellow-400">Kumbh Mela</span> <br />
+              Nashik 2027
+            </h1>
+            <p className="text-lg md:text-xl font-medium text-white/80 leading-relaxed mb-10 max-w-lg">
+              Smart routing. Real-time family group tracking.
+              Local business discovery. Experience the safest
+              Kumbh Mela with technology and tradition united.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <Link href="/location" className="px-8 py-4 bg-white text-blue-900 rounded-full font-black text-sm uppercase tracking-widest hover:bg-zinc-100 transition-all shadow-xl flex items-center gap-3">
+                <MapPin className="w-5 h-5 fill-current" /> Explore Live Map
+              </Link>
+              <Link href="/family" className="px-8 py-4 border-2 border-white/30 text-white rounded-full font-black text-sm uppercase tracking-widest hover:bg-white/10 transition-all flex items-center gap-3">
+                Family Safety
               </Link>
             </div>
-          </div>
-        </main>
-      )}
 
-      {/* Page 2 & 3 Combined: How Crowd Safety Works */}
-      {page === 2 && (
-        <main className="max-w-4xl mx-auto p-6 space-y-12 pb-32">
-          <section className="text-center">
-            <h2 className="text-4xl font-black text-blue-900 uppercase underline decoration-orange-500 underline-offset-8">
-              How Crowd Safety Works
-            </h2>
-            <p className="text-xl font-bold mt-4 text-gray-600 italic leading-tight">
-              "Understanding the safety system"
-            </p>
-          </section>
-
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="bg-white border-4 border-blue-900 rounded-[2rem] p-8 space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-900 text-white rounded-full flex items-center justify-center font-black text-2xl">1</div>
-                <h4 className="text-2xl font-black uppercase">Cameras detect crowd</h4>
-              </div>
-              <div className="aspect-video bg-gray-100 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300">
-                <Camera className="w-16 h-16 text-gray-300" />
-              </div>
-              <p className="font-bold text-gray-600 text-lg">Smart cameras across the Mela watch the crowd density in real-time.</p>
-            </div>
-
-            <div className="bg-white border-4 border-blue-900 rounded-[2rem] p-8 space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-900 text-white rounded-full flex items-center justify-center font-black text-2xl">2</div>
-                <h4 className="text-2xl font-black uppercase">Crowd zones marked</h4>
-              </div>
-              <div className="space-y-4">
-                <div className="flex items-center gap-4 p-4 bg-green-100 border-2 border-green-600 rounded-2xl">
-                  <div className="w-6 h-6 bg-green-600 rounded-full"></div>
-                  <span className="text-xl font-black text-green-800 tracking-tight uppercase">Green - Safe Area</span>
-                </div>
-                <div className="flex items-center gap-4 p-4 bg-yellow-100 border-2 border-yellow-600 rounded-2xl">
-                  <div className="w-6 h-6 bg-yellow-600 rounded-full"></div>
-                  <span className="text-xl font-black text-yellow-800 tracking-tight uppercase">Yellow - Medium Crowd</span>
-                </div>
-                <div className="flex items-center gap-4 p-4 bg-red-100 border-2 border-red-600 rounded-2xl">
-                  <div className="w-6 h-6 bg-red-600 rounded-full"></div>
-                  <span className="text-xl font-black text-red-800 tracking-tight uppercase">Red - High Crowd</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-orange-600 text-white p-8 rounded-[2rem] border-b-8 border-orange-800">
-            <div className="flex items-center gap-6 mb-4">
-              <Navigation className="w-12 h-12" />
-              <h4 className="text-3xl font-black uppercase tracking-tight italic">3. App suggests safer route</h4>
-            </div>
-            <p className="text-xl font-bold leading-relaxed">
-              "Users are guided away from danger. The app finds the best green path for your movement."
-            </p>
-          </div>
-
-          <div className="space-y-4 pt-8">
-            <Link
-              href="/location"
-              className="w-full bg-blue-900 text-white py-8 rounded-3xl text-2xl font-black uppercase flex items-center justify-center gap-4 shadow-2xl border-b-8 border-black shadow-blue-900/40"
-            >
-              Open Live Map / लाइव नक्शा देखें
-            </Link>
-            <Link
-              href="/sim-tracker"
-              className="w-full bg-orange-600 text-white py-6 rounded-3xl text-xl font-black uppercase flex items-center justify-center gap-4 shadow-xl border-b-6 border-orange-800"
-            >
-              Try Demo / डेमो देखें
-            </Link>
-          </div>
-        </main>
-      )}
-
-      {/* Page 4: Group Safety & Business */}
-      {page === 4 && (
-        <main className="max-w-4xl mx-auto p-6 space-y-12 pb-32">
-          {/* Group Safety Section */}
-          <section className="bg-white border-4 border-blue-900 rounded-[2.5rem] p-8 shadow-xl">
-            <div className="flex justify-between items-start mb-8">
-              <h2 className="text-4xl font-black text-blue-900 uppercase italic">Do Not Get Lost</h2>
-              <span className="bg-orange-600 text-white px-6 py-2 rounded-full text-xl font-black animate-pulse">₹30 ONLY</span>
-            </div>
-
-            <div className="space-y-6 mb-10">
+            {/* Stats Info (Bottom of Hero) */}
+            <div className="mt-16 flex flex-wrap gap-12">
               {[
-                "Create one group for your family",
-                "Add unlimited family members",
-                "Alert if someone goes too far",
-                "Safe route shown to find each other"
-              ].map((point, i) => (
-                <div key={i} className="flex items-center gap-6">
-                  <div className="bg-green-100 p-2 rounded-full">
-                    <HeartHandshake className="w-8 h-8 text-green-600" />
-                  </div>
-                  <p className="text-2xl font-black text-gray-700 leading-tight tracking-tight uppercase">{point}</p>
+                { label: "Expected Pilgrims", value: "2M+" },
+                { label: "Volunteer Support", value: "24/7" },
+                { label: "Registered Businesses", value: "1000+" }
+              ].map((stat, i) => (
+                <div key={i}>
+                  <div className="text-3xl font-black text-white">{stat.value}</div>
+                  <div className="text-[10px] font-bold text-white/60 uppercase tracking-widest mt-1">{stat.label}</div>
                 </div>
               ))}
             </div>
+          </motion.div>
 
-            <Link
-              href="/family"
-              className="w-full bg-blue-900 text-white py-8 rounded-3xl text-2xl font-black uppercase flex items-center justify-center gap-4 shadow-2xl border-b-8 border-black"
-            >
-              Activate Group / परिवार जोड़ें
-            </Link>
-          </section>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8 }}
+            className="relative"
+          >
+            <div className="relative rounded-[2rem] overflow-hidden border-8 border-white/10 shadow-3xl aspect-video md:aspect-[4/3]">
+              <Image
+                src="/kumbh-hero.jpg"
+                alt="Kumbh Mela Crowds"
+                fill
+                className="object-cover"
+                priority
+              />
+            </div>
+          </motion.div>
+        </div>
+      </section>
 
-          {/* Nearby Business Section */}
-          <section className="bg-orange-50 border-4 border-orange-500 rounded-[2.5rem] p-8">
-            <h2 className="text-4xl font-black text-orange-700 uppercase italic mb-8">📍 Nearby Services</h2>
+      {/* 3. How It Works Section (Inspired by First Image) */}
+      <section className="py-24 px-6 bg-gray-50/50">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-black text-blue-900 uppercase italic tracking-tighter mb-4">How It Works</h2>
+            <p className="text-gray-500 font-bold uppercase text-xs tracking-[0.2em]">Simple, safe, and smart technology to make your Kumbh experience seamless</p>
+          </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-10">
+          <div className="grid md:grid-cols-4 gap-6">
+            {[
+              {
+                title: "QR-Based GPS Tracking",
+                desc: "Scan QR code to activate real-time location tracking for safety and coordination.",
+                icon: QrCode,
+                color: "bg-orange-500"
+              },
+              {
+                title: "Family Radar System",
+                desc: "Keep your group together. Receive drift alerts and see everyone's live location on one map.",
+                icon: Users,
+                color: "bg-purple-600"
+              },
+              {
+                title: "Local Business Discovery",
+                desc: "Find nearby food stalls, shops, hotels, and essential services with real-road routing.",
+                icon: Utensils,
+                color: "bg-red-500"
+              },
+              {
+                title: "Smart Route Navigation",
+                desc: "AI-powered route suggestions based on real-time crowd density to avoid bottlenecks.",
+                icon: Navigation2,
+                color: "bg-orange-600"
+              }
+            ].map((card, i) => (
+              <div key={i} className="bg-white border border-gray-100 p-8 rounded-[2rem] shadow-sm hover:shadow-xl transition-shadow group">
+                <div className={`w-12 h-12 ${card.color} rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-current/20 group-hover:scale-110 transition-transform`}>
+                  <card.icon className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-lg font-black text-blue-900 mb-3 leading-tight">{card.title}</h3>
+                <p className="text-sm text-gray-500 font-medium leading-relaxed">
+                  {card.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 4. Scanner UI Section (Inspired by Third Image) */}
+      <section className="py-24 px-6">
+        <div className="max-w-5xl mx-auto bg-[#E8F5E9] rounded-[3rem] p-8 md:p-16 flex flex-col md:flex-row items-center gap-12 border border-green-200">
+          <div className="flex-1 space-y-8">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-900 text-white rounded-lg text-[10px] font-black uppercase tracking-widest mb-6">
+                <Shield className="w-3 h-3" /> Verified Safe Technology
+              </div>
+              <h2 className="text-4xl md:text-5xl font-black text-blue-900 leading-tight mb-6">Scan. Connect. <br /> Stay Safe.</h2>
+              <p className="text-lg text-blue-900/70 font-medium leading-relaxed">
+                When you arrive at Kumbh Mela, simply scan the QR code
+                displayed at entry points. This will activate GPS tracking on
+                your device, allowing:
+              </p>
+            </div>
+
+            <ul className="space-y-4">
               {[
-                { icon: Utensils, label: "Food Stalls" },
-                { icon: Hotel, label: "Hotels" },
-                { icon: Stethoscope, label: "Medical Help" },
-                { icon: ShoppingBag, label: "Shops" }
+                "Real-time location sharing for family safety",
+                "Emergency assistance coordination with volunteers",
+                "Personalized route suggestions based on crowd levels"
               ].map((item, i) => (
-                <div key={i} className="bg-white p-6 rounded-2xl border-2 border-orange-200 flex flex-col items-center gap-3">
-                  <item.icon className="w-12 h-12 text-orange-600" />
-                  <span className="text-xl font-black uppercase text-blue-900">{item.label}</span>
-                </div>
+                <li key={i} className="flex items-center gap-4 text-sm font-bold text-blue-900">
+                  <CheckCircle2 className="w-5 h-5 text-green-700 shrink-0" />
+                  {item}
+                </li>
               ))}
-            </div>
+            </ul>
 
-            <div className="bg-white p-6 rounded-2xl border-2 border-gray-200 mb-8">
-              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">Try searching for:</p>
-              <div className="flex flex-wrap gap-3">
-                {["Ice cream", "Water", "Doctor", "Temple"].map(s => (
-                  <span key={s} className="px-4 py-2 bg-gray-100 rounded-lg text-lg font-black text-gray-700 border border-gray-300">"{s}"</span>
-                ))}
+            <Link href="/sim-tracker" className="inline-flex items-center gap-3 px-10 py-5 bg-green-900 text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-green-800 transition-all shadow-xl shadow-green-900/20 active:scale-95">
+              View Demo <ChevronRight className="w-5 h-5" />
+            </Link>
+          </div>
+
+          <div className="shrink-0">
+            <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl border border-white relative group">
+              <div className="absolute inset-0 bg-green-500/5 blur-3xl rounded-full"></div>
+              <div className="relative z-10 space-y-6 flex flex-col items-center">
+                <QrCode className="w-48 h-48 text-blue-900" strokeWidth={1.5} />
+                <p className="text-green-800 font-bold italic tracking-tight text-center">Scan at Entry Points</p>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
 
-            <Link
-              href="/business-map"
-              className="w-full bg-orange-600 text-white py-8 rounded-3xl text-2xl font-black uppercase flex items-center justify-center gap-4 shadow-2xl border-b-8 border-orange-800"
-            >
-              View All on Map / नक़्शे पर देखें
-            </Link>
-          </section>
-        </main>
-      )}
-
-      {/* Language Selection Footer (Sticky) */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-blue-900 p-3 flex justify-around items-center z-50">
-        <button className="text-xs font-black uppercase tracking-widest text-blue-900 flex flex-col items-center">
-          <Info className="w-5 h-5 mb-1" />
-          Help
-        </button>
-        <div className="h-8 w-px bg-gray-200"></div>
-        <button className="text-[10px] font-black uppercase tracking-tighter text-blue-900 text-center leading-none">
-          Nashik <br /> 2027
-        </button>
-        <div className="h-8 w-px bg-gray-200"></div>
-        <button className="text-xs font-black uppercase tracking-widest text-blue-900 flex flex-col items-center">
-          <HeartHandshake className="w-5 h-5 mb-1" />
-          Volunteer
-        </button>
-      </div>
+      {/* Footer */}
+      <footer className="py-12 border-t border-gray-100 text-center">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
+          &copy; 2026 Kumbh Sahayak ∙ Public Safety System ∙ Nashik Division
+        </p>
+      </footer>
 
       <style jsx global>{`
-                body {
-                    background-color: #FFFDF5;
-                }
-                h1, h2, h3, h4, button {
-                    letter-spacing: -0.02em;
-                }
+                h1, h2, h3 { letter-spacing: -0.02em; }
             `}</style>
     </div>
   );
