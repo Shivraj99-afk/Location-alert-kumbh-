@@ -3,26 +3,34 @@ import { NextResponse } from "next/server";
 import { getCellId } from "@/lib/grid";
 
 export async function POST(req) {
-  const { userId, lat, lng } = await req.json();
+  try {
+    const { userId, lat, lng } = await req.json();
 
-  const prev = users.get(userId);
-  const cellId = getCellId(lat, lng);
+    if (!userId || isNaN(lat) || isNaN(lng)) {
+      return NextResponse.json({ error: "Invalid data" }, { status: 400 });
+    }
 
-  // If the user is in a new cell, reset their joinTime
-  let joinTime = prev?.joinTime || Date.now();
-  if (prev && prev.cellId !== cellId) {
-    joinTime = Date.now();
-  } else if (!prev) {
-    joinTime = Date.now();
+    const cellId = getCellId(lat, lng);
+    const existing = users.get(userId);
+
+    // Initial join time or reset if cell changed
+    let joinTime = existing?.joinTime || Date.now();
+    if (existing && existing.cellId !== cellId) {
+      joinTime = Date.now();
+    }
+
+    users.set(userId, {
+      userId,
+      lat,
+      lng,
+      cellId,
+      joinTime,
+      time: Date.now() // Last sync time
+    });
+
+    return NextResponse.json({ success: true, cellId });
+  } catch (err) {
+    console.error("Update Error:", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
-
-  users.set(userId, {
-    lat,
-    lng,
-    time: Date.now(),
-    joinTime,
-    cellId
-  });
-
-  return NextResponse.json({ ok: true });
 }
