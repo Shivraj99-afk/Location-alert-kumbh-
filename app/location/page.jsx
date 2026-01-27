@@ -52,6 +52,11 @@ export default function LocationPage() {
   const [forceSafePath, setForceSafePath] = useState(false);
   const [manualTarget, setManualTarget] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [family, setFamily] = useState([]);
+  const [groupCode, setGroupCode] = useState(null);
+  const [groupName, setGroupName] = useState(null);
+  const [userName, setUserName] = useState("Pilgrim");
+  const [showGroupModal, setShowGroupModal] = useState(false);
 
   // Fix leaflet icons
   useEffect(() => {
@@ -64,6 +69,12 @@ export default function LocationPage() {
         shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
       });
     })();
+
+    // Load family session
+    const savedCode = localStorage.getItem("groupId");
+    const savedName = localStorage.getItem("userName");
+    if (savedCode) setGroupCode(savedCode);
+    if (savedName) setUserName(savedName);
   }, []);
 
   // Get GPS Location
@@ -122,6 +133,7 @@ export default function LocationPage() {
         setAlert(data.alert);
         setRecommendedCell(data.recommendation);
         setCrowdLimit(data.crowdLimit);
+        setFamily(data.family || []);
         if (data.safestPath) setNavigationPath(data.safestPath);
         else if (!manualTarget && !data.recommendation) setNavigationPath(null);
         setLastSync(new Date());
@@ -137,16 +149,31 @@ export default function LocationPage() {
     return () => clearInterval(interval);
   }, [userId, forceSafePath, manualTarget?.lat, manualTarget?.lng]); // Removed pos to stop request storm
 
-  // Update Global Limit
-  const handleLimitChange = async (newLimit) => {
+  const handleGroupAction = async (action, code, name) => {
     try {
-      await fetch("/api/location/settings", {
+      const res = await fetch("/api/location/group", {
         method: "POST",
-        body: JSON.stringify({ limit: parseInt(newLimit) }),
+        body: JSON.stringify({ action, userId, groupCode: code, groupName: name, userName }),
       });
-      setCrowdLimit(newLimit);
+      const data = await res.json();
+      if (data.success) {
+        if (action === "create" || action === "join") {
+          setGroupCode(data.groupCode || code);
+          setGroupName(data.groupName || name);
+          localStorage.setItem("groupId", data.groupCode || code);
+          localStorage.setItem("groupName", data.groupName || name);
+          setShowGroupModal(false);
+        } else if (action === "leave") {
+          setGroupCode(null);
+          setGroupName(null);
+          localStorage.removeItem("groupId");
+          localStorage.removeItem("groupName");
+        }
+      } else {
+        alert(data.error || "Group action failed");
+      }
     } catch (err) {
-      console.error("Settings error:", err);
+      console.error("Group error:", err);
     }
   };
 
@@ -172,9 +199,11 @@ export default function LocationPage() {
           <a href="/lost/feed" className="bg-white/90 backdrop-blur-md text-blue-600 px-4 py-2 rounded-xl border border-blue-100 shadow-lg font-bold text-sm tracking-tight flex items-center gap-2 hover:bg-white transition-all">
             📢 <span className="hidden sm:inline">LOST & FOUND</span>
           </a>
-          <a href="/volunteer" className="bg-white/90 backdrop-blur-md text-emerald-600 px-4 py-2 rounded-xl border border-emerald-100 shadow-lg font-bold text-sm tracking-tight flex items-center gap-2 hover:bg-white transition-all">
-            🤝 <span className="hidden sm:inline">VOLUNTEER</span>
-          </a>
+          <button
+            onClick={() => setShowGroupModal(true)}
+            className={`bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl border shadow-lg font-bold text-sm tracking-tight flex items-center gap-2 transition-all pointer-events-auto ${groupCode ? 'text-blue-600 border-blue-100' : 'text-slate-800 border-slate-100 hover:bg-white'}`}>
+            👨‍👩‍👧‍👦 {groupCode ? `FAMILY: ${groupCode}` : 'LINK FAMILY'}
+          </button>
           <button
             onClick={() => {
               setForceSafePath(!forceSafePath);
@@ -264,6 +293,69 @@ export default function LocationPage() {
         </div>
       )}
 
+      {/* Family Group Modal */}
+      {showGroupModal && (
+        <div className="absolute inset-0 z-[2000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 h-full w-full">
+          <div className="bg-white rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl animate-in zoom-in-95 pointer-events-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-black tracking-tighter text-slate-900 uppercase">Family Link</h2>
+              <button onClick={() => setShowGroupModal(false)} className="bg-slate-100 p-2 rounded-full text-slate-400 hover:text-slate-900 transition-colors">✕</button>
+            </div>
+
+            <div className="space-y-6">
+              <div className="bg-slate-50 p-4 rounded-3xl border border-slate-100">
+                <label className="block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 px-1">My Nickname</label>
+                <input
+                  type="text"
+                  value={userName}
+                  onChange={(e) => { setUserName(e.target.value); localStorage.setItem("userName", e.target.value); }}
+                  placeholder="e.g. Rahul"
+                  className="w-full bg-white border-none rounded-2xl px-5 py-4 font-bold text-slate-900 shadow-sm focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+                />
+              </div>
+
+              {!groupCode ? (
+                <div className="space-y-4">
+                  <button onClick={() => handleGroupAction("create", null, "Our Family")} className="w-full bg-blue-600 text-white font-black py-4 rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 uppercase tracking-widest text-xs">
+                    Create Family Group
+                  </button>
+                  <div className="relative py-2">
+                    <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100"></div></div>
+                    <div className="relative flex justify-center text-[10px] font-bold uppercase tracking-widest text-slate-300"><span className="bg-white px-3">or join family</span></div>
+                  </div>
+                  <div className="flex gap-2 bg-slate-100 p-2 rounded-2xl">
+                    <input
+                      id="join-code"
+                      type="text"
+                      placeholder="CODE"
+                      onInput={(e) => e.target.value = e.target.value.toUpperCase()}
+                      className="flex-1 bg-transparent border-none px-4 py-2 font-mono font-black text-lg text-center focus:outline-none"
+                    />
+                    <button
+                      onClick={() => handleGroupAction("join", document.getElementById("join-code").value.toUpperCase())}
+                      className="bg-slate-900 text-white px-6 rounded-xl font-bold hover:bg-black transition-all text-xs"
+                    >
+                      JOIN
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-6 bg-blue-50 rounded-[2rem] border border-blue-100 text-center shadow-inner">
+                    <span className="block text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-2">Connect Code</span>
+                    <span className="text-4xl font-black tracking-[0.2em] text-blue-600 drop-shadow-sm">{groupCode}</span>
+                    <p className="mt-4 text-[11px] text-slate-500 leading-relaxed">Give this code to family members to see them on your map instantly.</p>
+                  </div>
+                  <button onClick={() => handleGroupAction("leave", groupCode)} className="w-full text-red-500 font-bold py-2 text-[11px] hover:underline uppercase tracking-widest opacity-60">
+                    Disconnect from Group
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <MapContainer
         center={[pos.lat, pos.lng]}
         zoom={18}
@@ -334,6 +426,28 @@ export default function LocationPage() {
           );
         })}
 
+        {/* Family Members */}
+        {family.map((member) => (
+          <Marker
+            key={member.id}
+            position={[member.lat, member.lng]}
+          >
+            <Tooltip permanent direction="top" className="family-tooltip">
+              <div className="flex flex-col items-center">
+                <span className="bg-emerald-500 text-white px-2 py-0.5 rounded-full text-[10px] font-black shadow-lg">
+                  {member.name}
+                </span>
+                <div className="w-2 h-2 bg-emerald-500 rotate-45 -mt-1 shadow-lg"></div>
+              </div>
+            </Tooltip>
+            <Circle
+              center={[member.lat, member.lng]}
+              radius={4}
+              pathOptions={{ color: "white", fillColor: "#10b981", fillOpacity: 1, weight: 2 }}
+            />
+          </Marker>
+        ))}
+
         {/* Nearby Users */}
         {nearby.map((u) => (
           <Circle
@@ -393,6 +507,11 @@ export default function LocationPage() {
           color: white !important;
           text-shadow: 0 1px 4px rgba(0,0,0,0.8);
           font-family: inherit;
+        }
+        .family-tooltip {
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
         }
         .leaflet-container {
           background: #111827 !important;

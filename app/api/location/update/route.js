@@ -17,6 +17,7 @@ export async function POST(req) {
   }
 
   users.set(userId, {
+    ...prev,
     lat,
     lng,
     time: Date.now(),

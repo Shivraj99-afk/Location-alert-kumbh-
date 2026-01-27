@@ -7,4 +7,7 @@ export const settings = {
 
 // Track how many people we've assigned to a specific cell in the last sync window
 // This helps with distributing paths
-export const reservations = new Map(); 
+export const reservations = new Map();
+
+// Family Groups: groupCode (e.g. "KJ92") -> { name, members: Set(userIds) }
+export const groups = new Map();
