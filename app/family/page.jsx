@@ -19,11 +19,14 @@ export default function FamilyTracker() {
     const [groupId, setGroupId] = useState("");
     const [isJoined, setIsJoined] = useState(false);
     const [view, setView] = useState("choice"); // choice, join, create
+    const [isLeader, setIsLeader] = useState(false);
+    const [isDrifting, setIsDrifting] = useState(false);
 
     // Create New Group
     const handleCreateGroup = () => {
         const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
         setGroupId(newCode);
+        setIsLeader(true);
         setView("create");
     };
 
@@ -108,6 +111,7 @@ export default function FamilyTracker() {
                         lng: p.coords.longitude,
                         name: userName,
                         userId: userId,
+                        isLeader: isLeader,
                         timestamp: Date.now()
                     });
                 }
@@ -119,33 +123,52 @@ export default function FamilyTracker() {
         return () => navigator.geolocation.clearWatch(watchId);
     }, [isJoined, userName, userId]);
 
-    // Calculate Meeting Point (Centroid)
+    // Calculate Meeting Point (Leader centric)
     const meetingPoint = useMemo(() => {
+        // Find leader among members
+        const leaderMember = Object.values(members).find(m => m.isLeader);
+
+        if (isLeader) return pos; // Leader is the meeting point
+        if (leaderMember) return { lat: leaderMember.lat, lng: leaderMember.lng };
+
+        // Fallback to average if no leader yet (e.g. initial sync)
         const all = [pos, ...Object.values(members).map(m => ({ lat: m.lat, lng: m.lng }))].filter(Boolean);
         if (all.length < 2) return null;
 
         const avgLat = all.reduce((s, p) => s + p.lat, 0) / all.length;
         const avgLng = all.reduce((s, p) => s + p.lng, 0) / all.length;
         return { lat: avgLat, lng: avgLng };
-    }, [pos, members]);
+    }, [pos, members, isLeader]);
 
-    // Distance Alert Logic
+    // Distance Alert Logic with Hysteresis
     useEffect(() => {
         if (!meetingPoint || !pos) return;
 
         const dist = getDistance(pos, meetingPoint);
-        if (dist >5) { // If user is more than 50m away from family center
-            setAlert({ type: 'danger', msg: "YOU ARE DRIFTING AWAY! FOLLOW THE PATH." });
+
+        let shouldBeDrifting = isDrifting;
+        if (dist > 5) shouldBeDrifting = true;
+        else if (dist < 3) shouldBeDrifting = false;
+
+        setIsDrifting(shouldBeDrifting);
+
+        if (isLeader) {
+            // Leader logic: Alert if ANY member is too far
+            const distantMembers = Object.values(members).filter(m => getDistance({ lat: m.lat, lng: m.lng }, pos) > 5);
+            if (distantMembers.length > 0) {
+                setAlert({ type: 'warn', msg: "MEMBER DRIFTING! PLEASE WAIT AT YOUR POSITION." });
+            } else {
+                setAlert(null);
+            }
         } else {
-            // Check if others are drifting
-            const drifters = Object.values(members).filter(m => getDistance({ lat: m.lat, lng: m.lng }, meetingPoint) > 50);
-            if (drifters.length > 0) {
-                setAlert({ type: 'warn', msg: `${drifters[0].name} is drifting away from the group!` });
+            // Follower logic: Alert if I am too far from leader
+            if (shouldBeDrifting) {
+                setAlert({ type: 'danger', msg: "YOU ARE DRIFTING AWAY! FOLLOW THE PATH TO LEADER." });
             } else {
                 setAlert(null);
             }
         }
-    }, [pos, meetingPoint, members]);
+    }, [pos, meetingPoint, members, isLeader, isDrifting]);
 
     function getDistance(p1, p2) {
         const R = 6371e3;
@@ -191,11 +214,18 @@ export default function FamilyTracker() {
                     {(view === "join" || view === "create") && (
                         <form onSubmit={handleJoin} className="space-y-4 animate-in slide-in-from-bottom-4">
                             {view === "create" && (
-                                <div className="bg-blue-600/10 border border-blue-500/20 p-4 rounded-2xl mb-2">
-                                    <p className="text-[10px] text-blue-400 font-black uppercase tracking-widest mb-1 text-center">Your New Group Code</p>
-                                    <div className="flex items-center justify-center gap-2">
+                                <div className="bg-blue-600/10 border border-blue-500/20 p-6 rounded-3xl mb-4">
+                                    <p className="text-[10px] text-blue-400 font-black uppercase tracking-widest mb-4 text-center">Scan to Join Family Group</p>
+                                    <div className="flex flex-col items-center justify-center gap-4">
                                         {!groupId && handleCreateGroup()}
-                                        <span className="text-2xl font-black text-white tracking-[0.3em]">{groupId}</span>
+                                        <div className="bg-white p-3 rounded-2xl shadow-xl">
+                                            <img
+                                                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${groupId}`}
+                                                alt="Group QR"
+                                                className="w-32 h-32"
+                                            />
+                                        </div>
+                                        <span className="text-2xl font-black text-white tracking-[0.3em] bg-black/40 px-6 py-2 rounded-xl border border-white/10">{groupId}</span>
                                     </div>
                                 </div>
                             )}
@@ -316,10 +346,16 @@ export default function FamilyTracker() {
                             key={id}
                             center={[members[id].lat, members[id].lng]}
                             radius={4}
-                            pathOptions={{ color: 'white', fillColor: '#3b82f6', fillOpacity: 1, weight: 2 }}
+                            pathOptions={{
+                                color: 'white',
+                                fillColor: members[id].isLeader ? '#fbbf24' : '#3b82f6',
+                                fillOpacity: 1,
+                                weight: members[id].isLeader ? 3 : 2
+                            }}
                         >
                             <Tooltip permanent direction="top" className="family-label">
-                                <div className="bg-blue-600 text-white px-2 py-0.5 rounded text-[8px] font-black uppercase">
+                                <div className={`${members[id].isLeader ? 'bg-amber-600' : 'bg-blue-600'} text-white px-2 py-0.5 rounded text-[8px] font-black uppercase flex items-center gap-1`}>
+                                    {members[id].isLeader && <span className="text-[10px]">👑</span>}
                                     {members[id].name}
                                 </div>
                             </Tooltip>
@@ -361,10 +397,18 @@ export default function FamilyTracker() {
                     <Circle
                         center={[pos.lat, pos.lng]}
                         radius={5}
-                        pathOptions={{ color: 'white', fillColor: '#22c55e', fillOpacity: 1, weight: 3 }}
+                        pathOptions={{
+                            color: 'white',
+                            fillColor: isLeader ? '#fbbf24' : '#22c55e',
+                            fillOpacity: 1,
+                            weight: 3
+                        }}
                     >
                         <Tooltip permanent direction="top" className="family-label">
-                            <div className="bg-emerald-600 text-white px-2 py-0.5 rounded text-[8px] font-black uppercase">YOU</div>
+                            <div className={`${isLeader ? 'bg-amber-600' : 'bg-emerald-600'} text-white px-2 py-0.5 rounded text-[8px] font-black uppercase flex items-center gap-1`}>
+                                {isLeader && <span className="text-[10px]">👑</span>}
+                                YOU {isLeader ? '(LEADER)' : ''}
+                            </div>
                         </Tooltip>
                     </Circle>
                 </MapContainer>
