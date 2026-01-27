@@ -37,6 +37,7 @@ export default function SimulationTracker() {
     const [manualTarget, setManualTarget] = useState(null);
     const [forceSafePath, setForceSafePath] = useState(false);
     const [crowdLimit, setCrowdLimit] = useState(2);
+    const [isLoading, setIsLoading] = useState(false);
 
     // Fix leaflet icons
     useEffect(() => {
@@ -78,8 +79,10 @@ export default function SimulationTracker() {
     useEffect(() => {
         if (!pos) return;
         const sync = async () => {
-            const currentPos = posRef.current;
+            const currentPos = posRef.current || pos;
             if (!currentPos) return;
+            
+            setIsLoading(true);
             try {
                 await fetch("/api/location/update", {
                     method: "POST",
@@ -94,12 +97,18 @@ export default function SimulationTracker() {
                 });
 
                 if (manualTarget) {
-                    query.set("targetLat", manualTarget.lat);
-                    query.set("targetLng", manualTarget.lng);
+                    query.set("targetLat", manualTarget.lat.toString());
+                    query.set("targetLng", manualTarget.lng.toString());
                 }
 
                 const res = await fetch(`/api/location/sim?${query.toString()}`);
+                
+                if (!res.ok) {
+                    throw new Error(`API error: ${res.status}`);
+                }
+                
                 const data = await res.json();
+                
                 setNearby(data.nearby || []);
                 setGridCrowd(data.gridCrowd || []);
                 setMyCell(data.myCell);
@@ -107,17 +116,39 @@ export default function SimulationTracker() {
                 setAlert(data.alert);
                 setRecommendedCell(data.recommendation);
                 setCrowdLimit(data.crowdLimit);
-                if (data.safestPath) setNavigationPath(data.safestPath);
-                else if (!manualTarget && !data.recommendation) setNavigationPath(null);
-            } catch (err) { console.error(err); }
+                
+                if (data.safestPath) {
+                    setNavigationPath(data.safestPath);
+                } else if (!manualTarget && !data.recommendation) {
+                    setNavigationPath(null);
+                }
+            } catch (err) { 
+                console.error("Sync error:", err); 
+            } finally {
+                setIsLoading(false);
+            }
         };
         sync();
         const interval = setInterval(sync, 4000);
         return () => clearInterval(interval);
-    }, [userId, forceSafePath, manualTarget?.lat, manualTarget?.lng]);
+    }, [userId, pos, forceSafePath, manualTarget]);
 
-    // Rerouting is now handled exclusively by the Grid-based SafestPath API.
-    // No road logic is used, making it perfect for open fields like Ram Kund.
+    const handleCellClick = (e, cell) => {
+        // Set the center of the cell as the target
+        const targetLat = cell.lat + LAT_STEP / 2;
+        const targetLng = cell.lng + LNG_STEP / 2;
+        
+        setManualTarget({ 
+            lat: targetLat, 
+            lng: targetLng, 
+            cellId: cell.id 
+        });
+    };
+
+    const clearTarget = () => {
+        setManualTarget(null);
+        setNavigationPath(null);
+    };
 
     if (!pos) return <div className="h-screen w-full flex items-center justify-center bg-zinc-950 text-blue-400 font-mono">LOADING SIMULATION...</div>;
 
@@ -133,18 +164,27 @@ export default function SimulationTracker() {
                         <p className="text-blue-400 font-bold mb-1 underline">SIMULATION HUD</p>
                         <p>RANK: <span className="text-yellow-400 font-bold">#{myRank}</span></p>
                         <p>LIMIT: <span className="text-white font-bold">{crowdLimit} PER CELL</span></p>
+                        {isLoading && <p className="text-green-400 mt-1">⟳ Calculating...</p>}
                     </div>
                 </div>
 
                 <div className="flex gap-2 pointer-events-auto">
                     <button
-                        onClick={() => { setForceSafePath(!forceSafePath); if (!forceSafePath) setManualTarget(null); }}
+                        onClick={() => { 
+                            setForceSafePath(!forceSafePath); 
+                            if (!forceSafePath) setManualTarget(null); 
+                        }}
                         className={`flex-1 py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-xl ${forceSafePath ? 'bg-red-500 text-white' : 'bg-white text-black hover:bg-zinc-200'}`}
                     >
                         {forceSafePath ? '🧭 AUTO RE-ROUTE: ON' : '🧭 TRIGGER SAFE PATH'}
                     </button>
                     {manualTarget && (
-                        <button onClick={() => setManualTarget(null)} className="w-12 h-12 bg-zinc-800 text-white rounded-2xl flex items-center justify-center shadow-xl">✕</button>
+                        <button 
+                            onClick={clearTarget} 
+                            className="w-12 h-12 bg-zinc-800 text-white rounded-2xl flex items-center justify-center shadow-xl hover:bg-zinc-700"
+                        >
+                            ✕
+                        </button>
                     )}
                 </div>
             </div>
@@ -158,14 +198,18 @@ export default function SimulationTracker() {
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
                             </div>
                             <div>
-                                <h3 className="font-black uppercase tracking-tighter text-lg leading-tight">Proceed to Safe Zone</h3>
-                                <p className="text-xs text-blue-100 opacity-70">Redirecting to avoid crowd bottleneck</p>
+                                <h3 className="font-black uppercase tracking-tighter text-lg leading-tight">
+                                    {manualTarget ? 'Navigate to Selected Zone' : 'Proceed to Safe Zone'}
+                                </h3>
+                                <p className="text-xs text-blue-100 opacity-70">
+                                    {manualTarget ? 'Safest route calculated' : 'Redirecting to avoid crowd bottleneck'}
+                                </p>
                             </div>
                         </div>
                         <div className="bg-black/20 rounded-2xl p-3 flex justify-between items-center">
                             <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Destination</span>
                             <span className="font-mono text-xs font-black bg-white text-blue-600 px-3 py-1 rounded-lg">
-                                {manualTarget ? 'CUSTOM POINT' : `SECTOR ${String.fromCharCode(64 + gridCrowd.findIndex(c => c.id === (manualTarget?.cellId || recommendedCell?.id)) + 1)}`}
+                                {manualTarget ? `CELL ${manualTarget.cellId}` : `AUTO SAFE ZONE`}
                             </span>
                         </div>
                     </div>
@@ -219,7 +263,7 @@ export default function SimulationTracker() {
                                 weight: isMe || isRec || isSel ? 3 : 0.5
                             }}
                             eventHandlers={{
-                                click: (e) => setManualTarget({ lat: e.latlng.lat, lng: e.latlng.lng, cellId: cell.id })
+                                click: (e) => handleCellClick(e, cell)
                             }}
                         >
                             <Tooltip permanent={isMe || isRec || isSel} direction="center" className="sim-tooltip">
@@ -233,7 +277,7 @@ export default function SimulationTracker() {
                 })}
 
                 {/* Safest AI Route Visualization */}
-                {navigationPath && (
+                {navigationPath && navigationPath.length > 0 && (
                     <>
                         <Polyline
                             positions={navigationPath}
@@ -248,13 +292,27 @@ export default function SimulationTracker() {
 
                 {/* User Dot */}
                 <Circle center={[pos.lat, pos.lng]} radius={4} pathOptions={{ color: "white", fillColor: "#3b82f6", fillOpacity: 1, weight: 2 }} />
+                
+                {/* Target Marker */}
+                {manualTarget && (
+                    <Circle 
+                        center={[manualTarget.lat, manualTarget.lng]} 
+                        radius={6} 
+                        pathOptions={{ color: "#3b82f6", fillColor: "#ffffff", fillOpacity: 1, weight: 3 }} 
+                    />
+                )}
             </MapContainer>
 
             <style jsx global>{`
-        .sim-tooltip { background: transparent !important; border: none !important; box-shadow: none !important; }
-        .text-shadow { text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
-        .leaflet-container { background: #000 !important; }
-      `}</style>
+                .sim-tooltip { background: transparent !important; border: none !important; box-shadow: none !important; }
+                .text-shadow { text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
+                .leaflet-container { background: #000 !important; }
+                @keyframes slide-in-from-bottom-5 {
+                    from { transform: translateY(20px) translateX(-50%); opacity: 0; }
+                    to { transform: translateY(0) translateX(-50%); opacity: 1; }
+                }
+                .animate-in { animation: slide-in-from-bottom-5 0.3s ease-out; }
+            `}</style>
         </div>
     );
 }

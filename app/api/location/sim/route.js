@@ -120,19 +120,31 @@ export async function GET(req) {
         }
     }
 
+    // 4. Calculate safest path
     let safestPath = null;
-    const target = (!isNaN(targetLat) && !isNaN(targetLng)) ? { lat: targetLat, lng: targetLng } : (recommendation ? { lat: recommendation.lat + LAT_STEP / 2, lng: recommendation.lng + LNG_STEP / 2 } : null);
+    
+    // Determine target: manual target takes priority, then recommendation
+    let target = null;
+    if (!isNaN(targetLat) && !isNaN(targetLng)) {
+        target = { lat: targetLat, lng: targetLng };
+    } else if (recommendation) {
+        target = { lat: recommendation.lat + LAT_STEP / 2, lng: recommendation.lng + LNG_STEP / 2 };
+    }
 
     if (target) {
         const densityMap = {};
         gridSnippet.forEach(cell => densityMap[cell.id] = cell.count);
 
-        safestPath = getSafestPath(
-            { lat, lng },
-            target,
-            densityMap,
-            settings.crowdLimit
-        );
+        try {
+            safestPath = getSafestPath(
+                { lat, lng },
+                target,
+                densityMap,
+                settings.crowdLimit
+            );
+        } catch (error) {
+            console.error("Error calculating safest path:", error);
+        }
     }
 
     return NextResponse.json({
