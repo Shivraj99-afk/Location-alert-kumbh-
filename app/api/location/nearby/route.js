@@ -150,3 +150,11 @@ export async function GET(req) {
     crowdLimit: settings.crowdLimit
   });
 }
+export async function PATCH(req) {
+  const { crowdLimit } = await req.json();
+  if (!isNaN(crowdLimit)) {
+    settings.crowdLimit = crowdLimit;
+    return NextResponse.json({ success: true, crowdLimit });
+  }
+  return NextResponse.json({ error: "Invalid limit" }, { status: 400 });
+}
