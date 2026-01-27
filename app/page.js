@@ -55,6 +55,12 @@ export default function Home() {
           >
             Nashik Custom
           </a>
+          <a
+            className="flex h-12 w-full items-center justify-center rounded-full border border-red-500/50 px-5 bg-red-500/10 text-red-600 hover:bg-red-500 hover:text-white transition-all font-bold md:w-auto"
+            href="/sim-tracker"
+          >
+            🧪 TEST SIMULATION
+          </a>
         </div>
       </main>
     </div>
