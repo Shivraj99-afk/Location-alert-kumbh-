@@ -26,6 +26,7 @@ const simCenter = [19.973, 73.7448];
 export default function SimulationTracker() {
     const [userId] = useState("sim-user-" + uuid().slice(0, 8));
     const [pos, setPos] = useState(null);
+    const posRef = useState({ current: null })[0];
     const [nearby, setNearby] = useState([]);
     const [gridCrowd, setGridCrowd] = useState([]);
     const [myCell, setMyCell] = useState(null);
@@ -59,7 +60,11 @@ export default function SimulationTracker() {
                 { enableHighAccuracy: true }
             );
             const watchId = navigator.geolocation.watchPosition(
-                (p) => setPos({ lat: p.coords.latitude, lng: p.coords.longitude }),
+                (p) => {
+                    const newPos = { lat: p.coords.latitude, lng: p.coords.longitude };
+                    setPos(newPos);
+                    posRef.current = newPos;
+                },
                 null,
                 { enableHighAccuracy: true }
             );
@@ -73,16 +78,18 @@ export default function SimulationTracker() {
     useEffect(() => {
         if (!pos) return;
         const sync = async () => {
+            const currentPos = posRef.current;
+            if (!currentPos) return;
             try {
                 await fetch("/api/location/update", {
                     method: "POST",
-                    body: JSON.stringify({ userId, lat: pos.lat, lng: pos.lng }),
+                    body: JSON.stringify({ userId, lat: currentPos.lat, lng: currentPos.lng }),
                 });
 
                 const query = new URLSearchParams({
                     userId,
-                    lat: pos.lat,
-                    lng: pos.lng,
+                    lat: currentPos.lat.toString(),
+                    lng: currentPos.lng.toString(),
                     forceSafePath: forceSafePath.toString()
                 });
 
@@ -107,7 +114,7 @@ export default function SimulationTracker() {
         sync();
         const interval = setInterval(sync, 4000);
         return () => clearInterval(interval);
-    }, [pos, userId, forceSafePath]);
+    }, [userId, forceSafePath, manualTarget?.lat, manualTarget?.lng]);
 
     // Rerouting is now handled exclusively by the Grid-based SafestPath API.
     // No road logic is used, making it perfect for open fields like Ram Kund.

@@ -39,6 +39,7 @@ const Polyline = dynamic(
 export default function LocationPage() {
   const [userId] = useState(uuid());
   const [pos, setPos] = useState(null);
+  const posRef = useState({ current: null })[0]; // Use a ref-like object that doesn't trigger effect
   const [nearby, setNearby] = useState([]);
   const [gridCrowd, setGridCrowd] = useState([]);
   const [myCell, setMyCell] = useState(null);
@@ -69,7 +70,9 @@ export default function LocationPage() {
     if ("geolocation" in navigator) {
       const watchId = navigator.geolocation.watchPosition(
         (p) => {
-          setPos({ lat: p.coords.latitude, lng: p.coords.longitude });
+          const newPos = { lat: p.coords.latitude, lng: p.coords.longitude };
+          setPos(newPos);
+          posRef.current = newPos;
         },
         (err) => console.error("GPS Error:", err),
         { enableHighAccuracy: true }
@@ -84,18 +87,21 @@ export default function LocationPage() {
     if (!pos) return;
 
     const sync = async () => {
+      const currentPos = posRef.current;
+      if (!currentPos) return;
+
       try {
         // Update my location
         await fetch("/api/location/update", {
           method: "POST",
-          body: JSON.stringify({ userId, lat: pos.lat, lng: pos.lng }),
+          body: JSON.stringify({ userId, lat: currentPos.lat, lng: currentPos.lng }),
         });
 
         // Get nearby info 
         const query = new URLSearchParams({
           userId,
-          lat: pos.lat.toString(),
-          lng: pos.lng.toString(),
+          lat: currentPos.lat.toString(),
+          lng: currentPos.lng.toString(),
           forceSafePath: forceSafePath.toString()
         });
 
@@ -125,7 +131,7 @@ export default function LocationPage() {
     sync();
     const interval = setInterval(sync, 5000);
     return () => clearInterval(interval);
-  }, [pos, userId, forceSafePath]);
+  }, [userId, forceSafePath, manualTarget?.lat, manualTarget?.lng]); // Removed pos to stop request storm
 
   // Update Global Limit
   const handleLimitChange = async (newLimit) => {
