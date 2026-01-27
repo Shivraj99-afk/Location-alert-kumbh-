@@ -84,19 +84,11 @@ export default function SimulationTracker() {
 
             setIsLoading(true);
             try {
-                /* 
-                   Location update disabled to save resources as requested.
-                   await fetch("/api/location/update", {
-                       method: "POST",
-                       body: JSON.stringify({ userId, lat: currentPos.lat, lng: currentPos.lng }),
-                   });
-                */
-
                 const query = new URLSearchParams({
                     userId,
                     lat: currentPos.lat.toString(),
                     lng: currentPos.lng.toString(),
-                    forceSafePath: forceSafePath.toString()
+                    forceSafePath: "true" // Always calculate a safe path
                 });
 
                 if (manualTarget) {
@@ -120,10 +112,12 @@ export default function SimulationTracker() {
                 setRecommendedCell(data.recommendation);
                 setCrowdLimit(data.crowdLimit);
 
-                if (data.safestPath) {
+                // Always show a safe path
+                if (data.safestPath && data.safestPath.length > 0) {
                     setNavigationPath(data.safestPath);
-                } else if (!manualTarget && !data.recommendation) {
-                    setNavigationPath(null);
+                } else if (data.recommendation) {
+                    // Fallback: draw direct line to recommendation
+                    setNavigationPath([[currentPos.lat, currentPos.lng], [data.recommendation.lat + LAT_STEP / 2, data.recommendation.lng + LNG_STEP / 2]]);
                 }
             } catch (err) {
                 console.error("Sync error:", err);
@@ -132,9 +126,9 @@ export default function SimulationTracker() {
             }
         };
         sync();
-        // Removed Interval: Only sync when user explicitly changes target or mode parameters.
-        // This stops "too many requests" and minimizes resource usage.
-    }, [userId, forceSafePath, manualTarget]);
+        const interval = setInterval(sync, 3000); // Refresh every 3s for live demo
+        return () => clearInterval(interval);
+    }, [userId, forceSafePath, manualTarget, pos]);
 
     const handleCellClick = (e, cell) => {
         // Set the center of the cell as the target
@@ -225,10 +219,10 @@ export default function SimulationTracker() {
                 {/* Test Boundary */}
                 <Polygon positions={testPolygon} pathOptions={{ color: "blue", weight: 2, fillOpacity: 0.05, dashArray: "5, 10" }} />
 
-                {/* Grid cells */}
-                {(gridCrowd.length > 0 ? gridCrowd : Array.from({ length: 1681 }).map((_, i) => {
-                    const r = Math.floor(i / 41) - 20;
-                    const c = (i % 41) - 20;
+                {/* Grid cells - Reduced to 9x9 (81 cells) for cleaner visuals */}
+                {(gridCrowd.length > 0 ? gridCrowd : Array.from({ length: 81 }).map((_, i) => {
+                    const r = Math.floor(i / 9) - 4;
+                    const c = (i % 9) - 4;
                     const myRLat = Math.floor(pos.lat / LAT_STEP);
                     const myRLng = Math.floor(pos.lng / LNG_STEP);
                     const rid = (myRLat + r);
@@ -237,9 +231,9 @@ export default function SimulationTracker() {
                         id: `${rid},${cid}`,
                         lat: rid * LAT_STEP,
                         lng: cid * LNG_STEP,
-                        count: 0
+                        count: Math.floor(Math.random() * 5) // Random crowd for demo
                     };
-                })).map((cell, idx) => {
+                })).slice(0, 81).map((cell, idx) => {
                     const isMe = cell.id === myCell;
                     const isRec = recommendedCell && cell.id === recommendedCell.id;
                     const isSel = manualTarget && cell.id === manualTarget.cellId;
@@ -293,14 +287,18 @@ export default function SimulationTracker() {
                     </>
                 )}
 
-                {/* Simulated Bots (Nearby) */}
+                {/* Simulated Crowd Bots (Nearby) - More visible */}
                 {nearby.map((bot, idx) => (
                     <Circle
                         key={`bot-${idx}`}
                         center={[bot.lat, bot.lng]}
-                        radius={3}
-                        pathOptions={{ color: 'white', fillColor: '#ef4444', fillOpacity: 1, weight: 1.5, className: 'bot-pulse' }}
-                    />
+                        radius={5}
+                        pathOptions={{ color: '#fef08a', fillColor: '#ef4444', fillOpacity: 1, weight: 2, className: 'bot-pulse' }}
+                    >
+                        <Tooltip permanent direction="top" className="sim-tooltip">
+                            <div className="text-[8px] font-black text-white bg-red-600 px-1.5 py-0.5 rounded">👤</div>
+                        </Tooltip>
+                    </Circle>
                 ))}
 
                 {/* User Dot */}
