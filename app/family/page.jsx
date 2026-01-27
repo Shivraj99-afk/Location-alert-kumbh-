@@ -37,6 +37,8 @@ export default function FamilyTracker() {
     const lastPositionRef = useRef(null); // Track last sent position
     const alertTimeoutRef = useRef(null); // For alert hysteresis
     const alertLockedRef = useRef(false); // Prevent alert flickering
+    const lastUpdateTimeRef = useRef(0); // Time throttling
+    const positionHistoryRef = useRef([]); // For Kalman smoothing
 
     // Initialize Icons
     useEffect(() => {
@@ -95,39 +97,87 @@ export default function FamilyTracker() {
         return () => channel.unsubscribe();
     }, [isJoined, groupId, userId]);
 
-    // Real GPS Sync with Distance Filter
+    // GPS Smoothing Function (Exponential Weighted Average)
+    const smoothPosition = (newPos, accuracy) => {
+        // Filter 1: Accuracy threshold - reject poor GPS readings
+        if (accuracy && accuracy > 20) {
+            // GPS accuracy is worse than 20 meters - ignore
+            return lastPositionRef.current;
+        }
+
+        // Filter 2: Add to position history
+        positionHistoryRef.current.push(newPos);
+        if (positionHistoryRef.current.length > 5) {
+            positionHistoryRef.current.shift(); // Keep last 5 positions
+        }
+
+        // Filter 3: Exponential smoothing (Kalman-lite)
+        const alpha = 0.3; // Smoothing factor (0 = old position, 1 = new position)
+        if (lastPositionRef.current && positionHistoryRef.current.length > 2) {
+            return {
+                lat: alpha * newPos.lat + (1 - alpha) * lastPositionRef.current.lat,
+                lng: alpha * newPos.lng + (1 - alpha) * lastPositionRef.current.lng
+            };
+        }
+
+        return newPos;
+    };
+
+    // Real GPS Sync with Multi-Layer Stabilization
     useEffect(() => {
         if (!isJoined) return;
 
         const watchId = navigator.geolocation.watchPosition(
             (p) => {
-                const newPos = { lat: p.coords.latitude, lng: p.coords.longitude };
+                const now = Date.now();
 
-                // Distance filter: Only update if moved more than 2 meters
+                // Filter 1: Time throttling - update max once per 3 seconds
+                if (now - lastUpdateTimeRef.current < 3000) {
+                    return; // Too soon, ignore this update
+                }
+
+                const rawPos = { lat: p.coords.latitude, lng: p.coords.longitude };
+                const accuracy = p.coords.accuracy;
+
+                // Filter 2: Distance filter - must move at least 3 meters
                 if (lastPositionRef.current) {
-                    const moved = getDistance(lastPositionRef.current, newPos);
-                    if (moved < 2) {
-                        // GPS jitter - ignore this update
+                    const moved = getDistance(lastPositionRef.current, rawPos);
+                    if (moved < 3) {
+                        // Not enough movement - treat as stationary
                         return;
                     }
                 }
 
-                setPos(newPos);
-                lastPositionRef.current = newPos;
+                // Filter 3: Apply smoothing
+                const smoothedPos = smoothPosition(rawPos, accuracy);
+                if (!smoothedPos) return; // Rejected due to poor accuracy
+
+                // Update state
+                setPos(smoothedPos);
+                lastPositionRef.current = smoothedPos;
+                lastUpdateTimeRef.current = now;
                 setIsGpsActive(true);
 
+                // Sync to Supabase
                 if (channelRef.current) {
                     channelRef.current.track({
-                        lat: p.coords.latitude,
-                        lng: p.coords.longitude,
+                        lat: smoothedPos.lat,
+                        lng: smoothedPos.lng,
                         name: userName,
                         userId: userId,
-                        timestamp: Date.now()
+                        timestamp: now
                     });
                 }
             },
-            () => setIsGpsActive(false),
-            { enableHighAccuracy: true, maximumAge: 1000 }
+            (error) => {
+                console.error("GPS Error:", error);
+                setIsGpsActive(false);
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 2000
+            }
         );
 
         return () => navigator.geolocation.clearWatch(watchId);
