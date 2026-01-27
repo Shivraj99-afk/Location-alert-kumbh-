@@ -49,6 +49,7 @@ export default function LocationPage() {
   const [lastSync, setLastSync] = useState(new Date());
   const [crowdLimit, setCrowdLimit] = useState(2);
   const [forceSafePath, setForceSafePath] = useState(false);
+  const [manualTarget, setManualTarget] = useState(null);
 
   // Fix leaflet icons
   useEffect(() => {
@@ -128,15 +129,17 @@ export default function LocationPage() {
   // Rerouting Logic is now handled by the API (recommendedCell comes from sync)
 
   useEffect(() => {
-    if (!pos || !recommendedCell) {
+    const target = manualTarget || recommendedCell;
+    if (!pos || !target) {
       setNavigationPath(null);
       return;
     }
 
     const fetchRoute = async () => {
       try {
-        const destLat = recommendedCell.lat + LAT_STEP / 2;
-        const destLng = recommendedCell.lng + LNG_STEP / 2;
+        const target = manualTarget || recommendedCell;
+        const destLat = target.lat + LAT_STEP / 2;
+        const destLng = target.lng + LNG_STEP / 2;
         const url = `https://router.project-osrm.org/route/v1/walking/${pos.lng},${pos.lat};${destLng},${destLat}?overview=full&geometries=geojson`;
         const res = await fetch(url);
         const data = await res.json();
@@ -149,7 +152,7 @@ export default function LocationPage() {
       }
     };
     fetchRoute();
-  }, [recommendedCell?.id]); // Only re-fetch if destination changes
+  }, [recommendedCell?.id, manualTarget?.id]); // Only re-fetch if destination changes
 
   if (!pos) {
     return (
@@ -174,10 +177,21 @@ export default function LocationPage() {
             🤝 <span className="hidden sm:inline">VOLUNTEER</span>
           </a>
           <button
-            onClick={() => setForceSafePath(!forceSafePath)}
+            onClick={() => {
+              setForceSafePath(!forceSafePath);
+              if (!forceSafePath) setManualTarget(null); // Clear manual if turning on auto
+            }}
             className={`bg-white/90 backdrop-blur-md px-4 py-2 rounded-xl border shadow-lg font-bold text-sm tracking-tight flex items-center gap-2 transition-all pointer-events-auto ${forceSafePath ? 'text-red-600 border-red-100 ring-2 ring-red-500/20' : 'text-slate-800 border-slate-100 hover:bg-white'}`}>
             🧭 {forceSafePath ? 'MANUAL NAVIGATION: ON' : 'GET SAFE PATH'}
           </button>
+          {manualTarget && (
+            <button
+              onClick={() => setManualTarget(null)}
+              className="bg-red-500 text-white px-4 py-2 rounded-xl shadow-lg font-bold text-xs tracking-tight animate-in slide-in-from-left-5 pointer-events-auto"
+            >
+              ✕ CLEAR SELECTION
+            </button>
+          )}
         </div>
 
         <div className="bg-black/80 backdrop-blur-md text-green-400 p-4 rounded-2xl border border-green-500/30 shadow-2xl font-mono text-[10px] sm:text-xs pointer-events-auto min-w-[160px]">
@@ -210,22 +224,31 @@ export default function LocationPage() {
       </div>
 
       {/* Rerouting Alert Overlay */}
-      {recommendedCell && (
+      {(recommendedCell || manualTarget) && (
         <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[1000] w-[90%] max-w-md pointer-events-none">
           <div className="bg-blue-600/95 backdrop-blur-xl text-white p-6 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-blue-400/30 animate-in slide-in-from-bottom-10 pointer-events-auto">
             <div className="flex items-center gap-4 mb-3">
               <div className="bg-white/20 p-3 rounded-2xl">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
               </div>
-              <div>
-                <h3 className="font-black text-lg leading-tight uppercase tracking-tighter">{forceSafePath ? 'Optimized Route Found' : 'Heavy Crowd Detected'}</h3>
-                <p className="text-blue-100 text-sm opacity-80 font-medium">Load-balanced path established</p>
+              <div className="flex-1">
+                <h3 className="font-black text-lg leading-tight uppercase tracking-tighter">
+                  {manualTarget ? 'Manual Target Set' : (forceSafePath ? 'Optimized Route Found' : 'Heavy Crowd Detected')}
+                </h3>
+                <p className="text-blue-100 text-sm opacity-80 font-medium">
+                  {manualTarget ? 'Following your selected zone' : 'Load-balanced path established'}
+                </p>
               </div>
+              {manualTarget && (
+                <button onClick={() => setManualTarget(null)} className="text-blue-200 hover:text-white transition-colors">✕</button>
+              )}
             </div>
             <div className="bg-white/10 rounded-2xl p-4 flex justify-between items-center">
-              <span className="text-xs font-bold uppercase tracking-widest opacity-60">Target sector</span>
+              <span className="text-xs font-bold uppercase tracking-widest opacity-60 text-white">Target sector</span>
               <span className="font-mono bg-white text-blue-600 px-3 py-1 rounded-lg text-sm font-black">
-                SECTOR {String.fromCharCode(64 + gridCrowd.indexOf(recommendedCell) + 1)}
+                SECTOR {manualTarget
+                  ? String.fromCharCode(64 + gridCrowd.findIndex(c => c.id === manualTarget.id) + 1)
+                  : String.fromCharCode(64 + gridCrowd.indexOf(recommendedCell) + 1)}
               </span>
             </div>
           </div>
@@ -253,6 +276,7 @@ export default function LocationPage() {
         {gridCrowd.map((cell, idx) => {
           const isMe = cell.id === myCell;
           const isRecommended = recommendedCell && cell.id === recommendedCell.id;
+          const isSelected = manualTarget && cell.id === manualTarget.id;
           const opacity = isMe ? 0.6 : 0.3;
           let color = "#10b981"; // Green (Safe)
           if (cell.count >= crowdLimit) color = "#ef4444"; // Red (High)
@@ -270,15 +294,21 @@ export default function LocationPage() {
                 [cell.lat, cell.lng + LNG_STEP]
               ]}
               pathOptions={{
-                color: isRecommended ? "#3b82f6" : "white",
+                color: isSelected ? "#3b82f6" : (isRecommended ? "#3b82f6" : "white"),
                 fillColor: color,
                 fillOpacity: opacity,
-                weight: isMe || isRecommended ? 4 : 1,
+                weight: isMe || isRecommended || isSelected ? 4 : 1,
+              }}
+              eventHandlers={{
+                click: () => {
+                  setManualTarget(cell);
+                  setForceSafePath(true);
+                }
               }}
             >
-              <Tooltip permanent={isMe || isRecommended} direction="center" className="grid-tooltip">
+              <Tooltip permanent={isMe || isRecommended || isSelected} direction="center" className="grid-tooltip">
                 <div className="text-center font-bold text-[10px]">
-                  {isMe ? "YOU" : `SEC ${String.fromCharCode(65 + idx)}`}
+                  {isMe ? "YOU" : (isSelected ? "TARGET" : `SEC ${String.fromCharCode(65 + idx)}`)}
                   <br />
                   <span className="opacity-70">👥 {cell.count}</span>
                 </div>
@@ -309,6 +339,17 @@ export default function LocationPage() {
               pathOptions={{ color: "#ffffff", weight: 2, dashArray: "5, 15", opacity: 1 }}
             />
           </>
+        )}
+
+        {/* Off-Road Guidance Line (Direct Path) */}
+        {(manualTarget || recommendedCell) && (
+          <Polyline
+            positions={[
+              [pos.lat, pos.lng],
+              [(manualTarget || recommendedCell).lat + LAT_STEP / 2, (manualTarget || recommendedCell).lng + LNG_STEP / 2]
+            ]}
+            pathOptions={{ color: "#3b82f6", weight: 2, dashArray: "10, 20", opacity: 0.8 }}
+          />
         )}
 
         {/* Current User Dot */}
