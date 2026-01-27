@@ -78,7 +78,20 @@ export default function SimulationTracker() {
                     method: "POST",
                     body: JSON.stringify({ userId, lat: pos.lat, lng: pos.lng }),
                 });
-                const res = await fetch(`/api/location/sim?userId=${userId}&lat=${pos.lat}&lng=${pos.lng}&forceSafePath=${forceSafePath}`);
+
+                const query = new URLSearchParams({
+                    userId,
+                    lat: pos.lat,
+                    lng: pos.lng,
+                    forceSafePath: forceSafePath.toString()
+                });
+
+                if (manualTarget) {
+                    query.set("targetLat", manualTarget.lat);
+                    query.set("targetLng", manualTarget.lng);
+                }
+
+                const res = await fetch(`/api/location/sim?${query.toString()}`);
                 const data = await res.json();
                 setNearby(data.nearby || []);
                 setGridCrowd(data.gridCrowd || []);
@@ -87,6 +100,8 @@ export default function SimulationTracker() {
                 setAlert(data.alert);
                 setRecommendedCell(data.recommendation);
                 setCrowdLimit(data.crowdLimit);
+                if (data.safestPath) setNavigationPath(data.safestPath);
+                else if (!manualTarget && !data.recommendation) setNavigationPath(null);
             } catch (err) { console.error(err); }
         };
         sync();
@@ -94,18 +109,13 @@ export default function SimulationTracker() {
         return () => clearInterval(interval);
     }, [pos, userId, forceSafePath]);
 
-    // Precise Routing Logic
+    // Precise Routing Logic (Fallback to OSRM only if API path fails)
     useEffect(() => {
-        const target = manualTarget || recommendedCell;
-        if (!pos || !target) {
-            setNavigationPath(null);
-            return;
-        }
+        if (!pos || !manualTarget || navigationPath) return;
+
         const fetchRoute = async () => {
             try {
-                const destLat = manualTarget ? manualTarget.lat : target.lat + LAT_STEP / 2;
-                const destLng = manualTarget ? manualTarget.lng : target.lng + LNG_STEP / 2;
-                const url = `https://router.project-osrm.org/route/v1/walking/${pos.lng},${pos.lat};${destLng},${destLat}?overview=full&geometries=geojson`;
+                const url = `https://router.project-osrm.org/route/v1/walking/${pos.lng},${pos.lat};${manualTarget.lng},${manualTarget.lat}?overview=full&geometries=geojson`;
                 const res = await fetch(url);
                 const data = await res.json();
                 if (data.routes?.[0]) {
@@ -114,7 +124,7 @@ export default function SimulationTracker() {
             } catch (err) { console.error(err); }
         };
         fetchRoute();
-    }, [recommendedCell?.id, manualTarget?.lat, manualTarget?.lng]);
+    }, [manualTarget?.lat, manualTarget?.lng, navigationPath === null]);
 
     if (!pos) return <div className="h-screen w-full flex items-center justify-center bg-zinc-950 text-blue-400 font-mono">LOADING SIMULATION...</div>;
 
@@ -216,8 +226,19 @@ export default function SimulationTracker() {
                     );
                 })}
 
-                {/* Walking Route */}
-                {navigationPath && <Polyline positions={navigationPath} pathOptions={{ color: "#3b82f6", weight: 6, lineCap: "round", opacity: 0.6 }} />}
+                {/* Safest AI Route Visualization */}
+                {navigationPath && (
+                    <>
+                        <Polyline
+                            positions={navigationPath}
+                            pathOptions={{ color: "#3b82f6", weight: 8, lineCap: "round", opacity: 0.3, className: "glow-path" }}
+                        />
+                        <Polyline
+                            positions={navigationPath}
+                            pathOptions={{ color: "#ffffff", weight: 2, lineCap: "round", opacity: 0.8, dashArray: "1, 12" }}
+                        />
+                    </>
+                )}
 
                 {/* User Dot */}
                 <Circle center={[pos.lat, pos.lng]} radius={4} pathOptions={{ color: "white", fillColor: "#3b82f6", fillOpacity: 1, weight: 2 }} />

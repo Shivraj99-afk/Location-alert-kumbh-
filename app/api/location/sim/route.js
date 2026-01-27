@@ -1,6 +1,6 @@
 import { users, settings, reservations } from "../store";
 import { NextResponse } from "next/server";
-import { LAT_STEP, LNG_STEP, getCellId } from "@/lib/grid";
+import { LAT_STEP, LNG_STEP, getCellId, getSafestPath } from "@/lib/grid";
 
 function distance(a, b) {
     const R = 6371000;
@@ -20,6 +20,8 @@ export async function GET(req) {
     const lat = parseFloat(searchParams.get("lat"));
     const lng = parseFloat(searchParams.get("lng"));
     const forceSafePath = searchParams.get("forceSafePath") === "true";
+    const targetLat = parseFloat(searchParams.get("targetLat"));
+    const targetLng = parseFloat(searchParams.get("targetLng"));
 
     if (isNaN(lat) || isNaN(lng)) {
         return NextResponse.json({ error: "Invalid location" }, { status: 400 });
@@ -73,8 +75,9 @@ export async function GET(req) {
     const myRLat = Math.floor(lat / LAT_STEP);
     const myRLng = Math.floor(lng / LNG_STEP);
 
-    for (let dr = -2; dr <= 2; dr++) {
-        for (let dc = -2; dc <= 2; dc++) {
+    // Increase snippet size for better pathfinding (11x11)
+    for (let dr = -5; dr <= 5; dr++) {
+        for (let dc = -5; dc <= 5; dc++) {
             const r = myRLat + dr;
             const c = myRLng + dc;
             const id = `${r},${c}`;
@@ -117,6 +120,21 @@ export async function GET(req) {
         }
     }
 
+    let safestPath = null;
+    const target = (!isNaN(targetLat) && !isNaN(targetLng)) ? { lat: targetLat, lng: targetLng } : (recommendation ? { lat: recommendation.lat + LAT_STEP / 2, lng: recommendation.lng + LNG_STEP / 2 } : null);
+
+    if (target) {
+        const densityMap = {};
+        gridSnippet.forEach(cell => densityMap[cell.id] = cell.count);
+
+        safestPath = getSafestPath(
+            { lat, lng },
+            target,
+            densityMap,
+            settings.crowdLimit
+        );
+    }
+
     return NextResponse.json({
         nearby,
         myRank: myRank || 1,
@@ -124,6 +142,7 @@ export async function GET(req) {
         gridCrowd: gridSnippet,
         alert: isCrowded && myRank > settings.crowdLimit,
         recommendation,
+        safestPath,
         crowdLimit: settings.crowdLimit
     });
 }

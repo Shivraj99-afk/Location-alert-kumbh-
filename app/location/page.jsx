@@ -92,7 +92,19 @@ export default function LocationPage() {
         });
 
         // Get nearby info 
-        const res = await fetch(`/api/location/nearby?userId=${userId}&lat=${pos.lat}&lng=${pos.lng}&forceSafePath=${forceSafePath}`);
+        const query = new URLSearchParams({
+          userId,
+          lat: pos.lat.toString(),
+          lng: pos.lng.toString(),
+          forceSafePath: forceSafePath.toString()
+        });
+
+        if (manualTarget) {
+          query.set("targetLat", manualTarget.lat.toString());
+          query.set("targetLng", manualTarget.lng.toString());
+        }
+
+        const res = await fetch(`/api/location/nearby?${query.toString()}`);
         const data = await res.json();
 
         setNearby(data.nearby || []);
@@ -102,6 +114,8 @@ export default function LocationPage() {
         setAlert(data.alert);
         setRecommendedCell(data.recommendation);
         setCrowdLimit(data.crowdLimit);
+        if (data.safestPath) setNavigationPath(data.safestPath);
+        else if (!manualTarget && !data.recommendation) setNavigationPath(null);
         setLastSync(new Date());
       } catch (err) {
         console.error("Sync error:", err);
@@ -128,27 +142,13 @@ export default function LocationPage() {
 
   // Rerouting Logic is now handled by the API (recommendedCell comes from sync)
 
+  // Precise Routing Logic (Fallback to OSRM only if API path is unavailable)
   useEffect(() => {
-    const target = manualTarget || recommendedCell;
-    if (!pos || !target) {
-      setNavigationPath(null);
-      return;
-    }
+    if (!pos || !manualTarget || navigationPath) return;
 
     const fetchRoute = async () => {
       try {
-        let destLat, destLng;
-        if (manualTarget) {
-          destLat = manualTarget.lat;
-          destLng = manualTarget.lng;
-        } else if (recommendedCell) {
-          destLat = recommendedCell.lat + LAT_STEP / 2;
-          destLng = recommendedCell.lng + LNG_STEP / 2;
-        } else {
-          return;
-        }
-
-        const url = `https://router.project-osrm.org/route/v1/walking/${pos.lng},${pos.lat};${destLng},${destLat}?overview=full&geometries=geojson`;
+        const url = `https://router.project-osrm.org/route/v1/walking/${pos.lng},${pos.lat};${manualTarget.lng},${manualTarget.lat}?overview=full&geometries=geojson`;
         const res = await fetch(url);
         const data = await res.json();
         if (data.routes && data.routes.length > 0) {
@@ -160,7 +160,7 @@ export default function LocationPage() {
       }
     };
     fetchRoute();
-  }, [recommendedCell?.id, manualTarget?.lat, manualTarget?.lng]); // Only re-fetch if destination point changes
+  }, [manualTarget?.lat, manualTarget?.lng, navigationPath === null]);
 
   if (!pos) {
     return (
