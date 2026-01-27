@@ -220,7 +220,7 @@ export default function SimulationTracker() {
             )}
 
             <MapContainer center={[pos.lat, pos.lng]} zoom={18} className="h-full w-full z-0" zoomControl={false}>
-                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" className="map-tiles" />
 
                 {/* Test Boundary */}
                 <Polygon positions={testPolygon} pathOptions={{ color: "blue", weight: 2, fillOpacity: 0.05, dashArray: "5, 10" }} />
@@ -293,6 +293,16 @@ export default function SimulationTracker() {
                     </>
                 )}
 
+                {/* Simulated Bots (Nearby) */}
+                {nearby.map((bot, idx) => (
+                    <Circle
+                        key={`bot-${idx}`}
+                        center={[bot.lat, bot.lng]}
+                        radius={3}
+                        pathOptions={{ color: 'white', fillColor: '#ef4444', fillOpacity: 1, weight: 1.5, className: 'bot-pulse' }}
+                    />
+                ))}
+
                 {/* User Dot */}
                 <Circle center={[pos.lat, pos.lng]} radius={4} pathOptions={{ color: "white", fillColor: "#3b82f6", fillOpacity: 1, weight: 2 }} />
 
@@ -310,6 +320,13 @@ export default function SimulationTracker() {
                 .sim-tooltip { background: transparent !important; border: none !important; box-shadow: none !important; }
                 .text-shadow { text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
                 .leaflet-container { background: #000 !important; }
+                .map-tiles { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
+                .bot-pulse { animation: bot-glow 1.5s infinite; }
+                @keyframes bot-glow {
+                    0% { stroke-opacity: 0.5; stroke-width: 1.5; }
+                    50% { stroke-opacity: 1; stroke-width: 4; }
+                    100% { stroke-opacity: 0.5; stroke-width: 1.5; }
+                }
                 @keyframes slide-in-from-bottom-5 {
                     from { transform: translateY(20px) translateX(-50%); opacity: 0; }
                     to { transform: translateY(0) translateX(-50%); opacity: 1; }

@@ -222,7 +222,7 @@ export default function GenericSectorMap({ points, crowdRoad = [], safeRoad = []
     const currentSection = gridSections.find(s => s.id === selectedSectionId);
 
     return (
-        <div className="relative w-full h-screen bg-gray-100">
+        <div className="relative w-full h-screen bg-black">
             <style jsx global>{`
                 .crowd-line-glow {
                     filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8));
@@ -230,6 +230,15 @@ export default function GenericSectorMap({ points, crowdRoad = [], safeRoad = []
                 }
                 .safe-line-glow {
                     filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.8));
+                }
+                .bot-glow {
+                    filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.8));
+                    animation: bot-pulse 1.5s infinite ease-in-out;
+                }
+                @keyframes bot-pulse {
+                    0% { radius: 6; opacity: 0.7; }
+                    50% { radius: 9; opacity: 1; }
+                    100% { radius: 6; opacity: 0.7; }
                 }
                 @keyframes crowd-pulse {
                     0% { opacity: 0.6; stroke-width: 8; }
@@ -239,6 +248,8 @@ export default function GenericSectorMap({ points, crowdRoad = [], safeRoad = []
                 .sim-btn {
                     box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.4);
                 }
+                .map-tiles { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
+                .bot-label { background: transparent !important; border: none !important; box-shadow: none !important; }
             `}</style>
 
             {/* Simulation Controls */}
@@ -268,6 +279,7 @@ export default function GenericSectorMap({ points, crowdRoad = [], safeRoad = []
                 <TileLayer
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                     attribution='&copy; OpenStreetMap contributors'
+                    className="map-tiles"
                 />
 
                 <Polygon
@@ -341,15 +353,19 @@ export default function GenericSectorMap({ points, crowdRoad = [], safeRoad = []
                 {simPersonPos && (
                     <Circle
                         center={simPersonPos}
-                        radius={5}
+                        radius={6}
                         pathOptions={{
                             color: "white",
                             fillColor: "#3b82f6",
                             fillOpacity: 1,
                             weight: 3,
-                            className: 'person-dot'
+                            className: 'bot-glow'
                         }}
-                    />
+                    >
+                        <Tooltip permanent direction="top" className="bot-label">
+                            <div className="bg-blue-600 text-white px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest">SIM BOT</div>
+                        </Tooltip>
+                    </Circle>
                 )}
 
                 {gridSections.map((section) => {
