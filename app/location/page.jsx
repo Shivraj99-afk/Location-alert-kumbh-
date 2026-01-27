@@ -142,8 +142,8 @@ export default function LocationPage() {
     const cBase = Math.floor(position.lng / LNG_STEP);
     const grid = [];
 
-    for (let dr = -6; dr <= 6; dr++) {
-      for (let dc = -6; dc <= 6; dc++) {
+    for (let dr = -12; dr <= 12; dr++) {
+      for (let dc = -12; dc <= 12; dc++) {
         const r = rBase + dr;
         const c = cBase + dc;
         const id = `${r},${c}`;

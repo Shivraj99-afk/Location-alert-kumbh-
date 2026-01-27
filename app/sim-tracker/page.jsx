@@ -226,9 +226,9 @@ export default function SimulationTracker() {
                 <Polygon positions={testPolygon} pathOptions={{ color: "blue", weight: 2, fillOpacity: 0.05, dashArray: "5, 10" }} />
 
                 {/* Grid cells */}
-                {(gridCrowd.length > 0 ? gridCrowd : Array.from({ length: 441 }).map((_, i) => {
-                    const r = Math.floor(i / 21) - 10;
-                    const c = (i % 21) - 10;
+                {(gridCrowd.length > 0 ? gridCrowd : Array.from({ length: 1681 }).map((_, i) => {
+                    const r = Math.floor(i / 41) - 20;
+                    const c = (i % 41) - 20;
                     const myRLat = Math.floor(pos.lat / LAT_STEP);
                     const myRLng = Math.floor(pos.lng / LNG_STEP);
                     const rid = (myRLat + r);
