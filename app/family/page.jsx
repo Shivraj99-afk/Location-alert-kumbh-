@@ -34,6 +34,9 @@ export default function FamilyTracker() {
 
     const mapRef = useRef(null);
     const channelRef = useRef(null);
+    const lastPositionRef = useRef(null); // Track last sent position
+    const alertTimeoutRef = useRef(null); // For alert hysteresis
+    const alertLockedRef = useRef(false); // Prevent alert flickering
 
     // Initialize Icons
     useEffect(() => {
@@ -92,14 +95,25 @@ export default function FamilyTracker() {
         return () => channel.unsubscribe();
     }, [isJoined, groupId, userId]);
 
-    // Real GPS Sync
+    // Real GPS Sync with Distance Filter
     useEffect(() => {
         if (!isJoined) return;
 
         const watchId = navigator.geolocation.watchPosition(
             (p) => {
                 const newPos = { lat: p.coords.latitude, lng: p.coords.longitude };
+
+                // Distance filter: Only update if moved more than 2 meters
+                if (lastPositionRef.current) {
+                    const moved = getDistance(lastPositionRef.current, newPos);
+                    if (moved < 2) {
+                        // GPS jitter - ignore this update
+                        return;
+                    }
+                }
+
                 setPos(newPos);
+                lastPositionRef.current = newPos;
                 setIsGpsActive(true);
 
                 if (channelRef.current) {
@@ -113,7 +127,7 @@ export default function FamilyTracker() {
                 }
             },
             () => setIsGpsActive(false),
-            { enableHighAccuracy: true }
+            { enableHighAccuracy: true, maximumAge: 1000 }
         );
 
         return () => navigator.geolocation.clearWatch(watchId);
@@ -129,19 +143,39 @@ export default function FamilyTracker() {
         return { lat: avgLat, lng: avgLng };
     }, [pos, members]);
 
-    // Distance Alert Logic
+    // Distance Alert Logic with Hysteresis
     useEffect(() => {
         if (!meetingPoint || !pos) return;
 
         const dist = getDistance(pos, meetingPoint);
-        if (dist > 5) { // If user is more than 50m away from family center
+
+        // Hysteresis: If alert is locked, wait for timeout
+        if (alertLockedRef.current) {
+            return;
+        }
+
+        if (dist > 5) {
+            // Trigger alert and lock it for 3 seconds
             setAlert({ type: 'danger', msg: "YOU ARE DRIFTING AWAY! FOLLOW THE PATH." });
+            alertLockedRef.current = true;
+
+            if (alertTimeoutRef.current) clearTimeout(alertTimeoutRef.current);
+            alertTimeoutRef.current = setTimeout(() => {
+                alertLockedRef.current = false;
+            }, 3000);
         } else {
-            // Check if others are drifting
+            // Check if others are drifting (with higher threshold to avoid flickering)
             const drifters = Object.values(members).filter(m => getDistance({ lat: m.lat, lng: m.lng }, meetingPoint) > 50);
-            if (drifters.length > 0) {
+            if (drifters.length > 0 && !alertLockedRef.current) {
                 setAlert({ type: 'warn', msg: `${drifters[0].name} is drifting away from the group!` });
-            } else {
+                alertLockedRef.current = true;
+
+                if (alertTimeoutRef.current) clearTimeout(alertTimeoutRef.current);
+                alertTimeoutRef.current = setTimeout(() => {
+                    alertLockedRef.current = false;
+                    setAlert(null);
+                }, 3000);
+            } else if (!drifters.length && !alertLockedRef.current) {
                 setAlert(null);
             }
         }
