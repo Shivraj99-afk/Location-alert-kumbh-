@@ -34,11 +34,6 @@ export default function FamilyTracker() {
 
     const mapRef = useRef(null);
     const channelRef = useRef(null);
-    const lastPositionRef = useRef(null); // Track last sent position
-    const alertTimeoutRef = useRef(null); // For alert hysteresis
-    const alertLockedRef = useRef(false); // Prevent alert flickering
-    const lastUpdateTimeRef = useRef(0); // Time throttling
-    const positionHistoryRef = useRef([]); // For Kalman smoothing
 
     // Initialize Icons
     useEffect(() => {
@@ -97,87 +92,28 @@ export default function FamilyTracker() {
         return () => channel.unsubscribe();
     }, [isJoined, groupId, userId]);
 
-    // GPS Smoothing Function (Exponential Weighted Average)
-    const smoothPosition = (newPos, accuracy) => {
-        // Filter 1: Accuracy threshold - reject poor GPS readings
-        if (accuracy && accuracy > 20) {
-            // GPS accuracy is worse than 20 meters - ignore
-            return lastPositionRef.current;
-        }
-
-        // Filter 2: Add to position history
-        positionHistoryRef.current.push(newPos);
-        if (positionHistoryRef.current.length > 5) {
-            positionHistoryRef.current.shift(); // Keep last 5 positions
-        }
-
-        // Filter 3: Exponential smoothing (Kalman-lite)
-        const alpha = 0.3; // Smoothing factor (0 = old position, 1 = new position)
-        if (lastPositionRef.current && positionHistoryRef.current.length > 2) {
-            return {
-                lat: alpha * newPos.lat + (1 - alpha) * lastPositionRef.current.lat,
-                lng: alpha * newPos.lng + (1 - alpha) * lastPositionRef.current.lng
-            };
-        }
-
-        return newPos;
-    };
-
-    // Real GPS Sync with Multi-Layer Stabilization
+    // Real GPS Sync
     useEffect(() => {
         if (!isJoined) return;
 
         const watchId = navigator.geolocation.watchPosition(
             (p) => {
-                const now = Date.now();
-
-                // Filter 1: Time throttling - update max once per 3 seconds
-                if (now - lastUpdateTimeRef.current < 3000) {
-                    return; // Too soon, ignore this update
-                }
-
-                const rawPos = { lat: p.coords.latitude, lng: p.coords.longitude };
-                const accuracy = p.coords.accuracy;
-
-                // Filter 2: Distance filter - must move at least 3 meters
-                if (lastPositionRef.current) {
-                    const moved = getDistance(lastPositionRef.current, rawPos);
-                    if (moved < 3) {
-                        // Not enough movement - treat as stationary
-                        return;
-                    }
-                }
-
-                // Filter 3: Apply smoothing
-                const smoothedPos = smoothPosition(rawPos, accuracy);
-                if (!smoothedPos) return; // Rejected due to poor accuracy
-
-                // Update state
-                setPos(smoothedPos);
-                lastPositionRef.current = smoothedPos;
-                lastUpdateTimeRef.current = now;
+                const newPos = { lat: p.coords.latitude, lng: p.coords.longitude };
+                setPos(newPos);
                 setIsGpsActive(true);
 
-                // Sync to Supabase
                 if (channelRef.current) {
                     channelRef.current.track({
-                        lat: smoothedPos.lat,
-                        lng: smoothedPos.lng,
+                        lat: p.coords.latitude,
+                        lng: p.coords.longitude,
                         name: userName,
                         userId: userId,
-                        timestamp: now
+                        timestamp: Date.now()
                     });
                 }
             },
-            (error) => {
-                console.error("GPS Error:", error);
-                setIsGpsActive(false);
-            },
-            {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 2000
-            }
+            () => setIsGpsActive(false),
+            { enableHighAccuracy: true }
         );
 
         return () => navigator.geolocation.clearWatch(watchId);
@@ -193,39 +129,19 @@ export default function FamilyTracker() {
         return { lat: avgLat, lng: avgLng };
     }, [pos, members]);
 
-    // Distance Alert Logic with Hysteresis
+    // Distance Alert Logic
     useEffect(() => {
         if (!meetingPoint || !pos) return;
 
         const dist = getDistance(pos, meetingPoint);
-
-        // Hysteresis: If alert is locked, wait for timeout
-        if (alertLockedRef.current) {
-            return;
-        }
-
-        if (dist > 5) {
-            // Trigger alert and lock it for 3 seconds
+        if (dist > 5) { // If user is more than 50m away from family center
             setAlert({ type: 'danger', msg: "YOU ARE DRIFTING AWAY! FOLLOW THE PATH." });
-            alertLockedRef.current = true;
-
-            if (alertTimeoutRef.current) clearTimeout(alertTimeoutRef.current);
-            alertTimeoutRef.current = setTimeout(() => {
-                alertLockedRef.current = false;
-            }, 3000);
         } else {
-            // Check if others are drifting (with higher threshold to avoid flickering)
+            // Check if others are drifting
             const drifters = Object.values(members).filter(m => getDistance({ lat: m.lat, lng: m.lng }, meetingPoint) > 50);
-            if (drifters.length > 0 && !alertLockedRef.current) {
+            if (drifters.length > 0) {
                 setAlert({ type: 'warn', msg: `${drifters[0].name} is drifting away from the group!` });
-                alertLockedRef.current = true;
-
-                if (alertTimeoutRef.current) clearTimeout(alertTimeoutRef.current);
-                alertTimeoutRef.current = setTimeout(() => {
-                    alertLockedRef.current = false;
-                    setAlert(null);
-                }, 3000);
-            } else if (!drifters.length && !alertLockedRef.current) {
+            } else {
                 setAlert(null);
             }
         }
