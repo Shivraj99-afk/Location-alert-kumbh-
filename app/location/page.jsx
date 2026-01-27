@@ -78,18 +78,36 @@ export default function LocationPage() {
     if (savedName) setUserName(savedName);
   }, []);
 
+  const [accuracy, setAccuracy] = useState(null);
+
   // Get GPS Location
   useEffect(() => {
     if ("geolocation" in navigator) {
       const watchId = navigator.geolocation.watchPosition(
         (p) => {
+          // If accuracy is > 1000 meters, it's likely IP-based coarse location
+          // which can be 20-30km off in India. We should still show it but warn the user.
+          setAccuracy(p.coords.accuracy);
+
           const newPos = { lat: p.coords.latitude, lng: p.coords.longitude };
-          setPos(newPos);
-          setHasGPS(true);
-          posRef.current = newPos;
+
+          // Only update reference for sync if accuracy is reasonable (< 500m)
+          // This prevents the "20km jump" bug caused by IP fallbacks
+          if (p.coords.accuracy < 500) {
+            setPos(newPos);
+            setHasGPS(true);
+            posRef.current = newPos;
+          }
         },
-        (err) => console.error("GPS Error:", err),
-        { enableHighAccuracy: true }
+        (err) => {
+          console.error("GPS Error:", err);
+          setHasGPS(false);
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0, // Force fresh data, no cache
+          timeout: 10000  // Wait up to 10s for a fix
+        }
       );
       return () => navigator.geolocation.clearWatch(watchId);
     }
@@ -238,13 +256,21 @@ export default function LocationPage() {
         <div className="bg-slate-900 border border-white/10 text-green-400 p-4 rounded-2xl shadow-2xl font-mono text-[10px] sm:text-xs pointer-events-auto min-w-[160px]">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className="font-bold">MICRO-HUD</span>
+              <div className={`w-2 h-2 rounded-full animate-pulse ${accuracy && accuracy < 100 ? 'bg-green-500' : 'bg-amber-500'}`}></div>
+              <span className="font-bold uppercase tracking-widest text-[8px]">SATELLITE-LOCK</span>
             </div>
-            <span className="opacity-50 text-[8px]">{lastSync.toLocaleTimeString([], { second: '2-digit' })}s</span>
+            <span className="opacity-50 text-[8px]">{accuracy ? `${Math.round(accuracy)}m` : 'Wait...'}</span>
           </div>
 
           <div className="space-y-2">
+            {!hasGPS && (
+              <button
+                onClick={() => window.location.reload()}
+                className="w-full bg-blue-600 text-[8px] font-black py-1 rounded-md text-white animate-pulse"
+              >
+                ↻ RE-SYNC GPS HARDWARE
+              </button>
+            )}
             <div className="flex justify-between items-center bg-white/5 p-1.5 rounded-lg border border-white/10">
               <span className="opacity-60 text-[9px] uppercase tracking-tighter">LIMIT / CELL</span>
               <input
@@ -297,6 +323,18 @@ export default function LocationPage() {
         </div>
       )}
 
+      {/* Low Accuracy Warning */}
+      {accuracy && accuracy > 500 && (
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[1000] w-[90%] pointer-events-none">
+          <div className="bg-amber-600 text-white px-4 py-3 rounded-2xl shadow-2xl font-bold text-center border-2 border-amber-400 pointer-events-auto">
+            <span className="block text-lg">⚠️ LOW GPS PRECISION</span>
+            <span className="block text-[10px] opacity-90 uppercase tracking-widest mt-1">
+              Your location is {Math.round(accuracy / 1000)}km off. Please enable "High Accuracy" in your phone settings or move to an open area.
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Critical Alert Banner */}
       {alert && !recommendedCell && (
         <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[1000] w-[90%] pointer-events-none">
@@ -336,19 +374,24 @@ export default function LocationPage() {
                     <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-100"></div></div>
                     <div className="relative flex justify-center text-[10px] font-bold uppercase tracking-widest text-slate-300"><span className="bg-white px-3">or join family</span></div>
                   </div>
-                  <div className="flex gap-2 bg-slate-100 p-2 rounded-2xl">
+                  <div className="space-y-2">
                     <input
                       id="join-code"
                       type="text"
-                      placeholder="CODE"
+                      placeholder="ENTER 5-DIGIT CODE"
                       onInput={(e) => e.target.value = e.target.value.toUpperCase()}
-                      className="flex-1 bg-transparent border-none px-4 py-2 font-mono font-black text-lg text-center focus:outline-none"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleGroupAction("join", e.target.value.toUpperCase());
+                        }
+                      }}
+                      className="w-full bg-slate-100 border-none rounded-2xl px-4 py-4 font-mono font-black text-xl text-center focus:ring-2 focus:ring-blue-500 outline-none shadow-inner"
                     />
                     <button
                       onClick={() => handleGroupAction("join", document.getElementById("join-code").value.toUpperCase())}
-                      className="bg-slate-900 text-white px-6 rounded-xl font-bold hover:bg-black transition-all text-xs"
+                      className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black hover:bg-black transition-all tracking-widest text-xs"
                     >
-                      JOIN
+                      CONFIRM JOIN
                     </button>
                   </div>
                 </div>
