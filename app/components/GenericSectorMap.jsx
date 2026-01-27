@@ -89,7 +89,7 @@ export default function GenericSectorMap({ points, mapCenter, namePrefix = "Zone
 
     const gridSections = useMemo(() => generateGridSections(points, rows, cols), [points, rows, cols]);
 
-    // Sync shared data every 3 seconds
+    // Sync shared data once on load
     useEffect(() => {
         const syncData = async () => {
             try {
@@ -102,8 +102,6 @@ export default function GenericSectorMap({ points, mapCenter, namePrefix = "Zone
         };
 
         syncData();
-        const id = setInterval(syncData, 3000);
-        return () => clearInterval(id);
     }, []);
 
     const handleSectionClick = (id) => {
