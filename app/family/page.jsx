@@ -21,6 +21,7 @@ export default function FamilyTracker() {
     const [view, setView] = useState("choice"); // choice, join, create
     const [isLeader, setIsLeader] = useState(false);
     const [isDrifting, setIsDrifting] = useState(false);
+    const alertTimeoutRef = useRef(null);
 
     // Create New Group
     const handleCreateGroup = () => {
@@ -55,6 +56,10 @@ export default function FamilyTracker() {
     const handleJoin = (e) => {
         e.preventDefault();
         if (userName && groupId) {
+            // Joiners are NOT leaders (only creator is leader)
+            if (view === 'join') {
+                setIsLeader(false);
+            }
             setIsJoined(true);
         }
     };
@@ -105,6 +110,7 @@ export default function FamilyTracker() {
                 setPos(newPos);
                 setIsGpsActive(true);
 
+                // Track position in Supabase Presence
                 if (channelRef.current) {
                     channelRef.current.track({
                         lat: p.coords.latitude,
@@ -140,7 +146,7 @@ export default function FamilyTracker() {
         return { lat: avgLat, lng: avgLng };
     }, [pos, members, isLeader]);
 
-    // Distance Alert Logic with Hysteresis
+    // Distance Alert Logic with Hysteresis and Persistence
     useEffect(() => {
         if (!meetingPoint || !pos) return;
 
@@ -152,22 +158,44 @@ export default function FamilyTracker() {
 
         setIsDrifting(shouldBeDrifting);
 
+        // Clear any existing timeout
+        if (alertTimeoutRef.current) {
+            clearTimeout(alertTimeoutRef.current);
+            alertTimeoutRef.current = null;
+        }
+
         if (isLeader) {
             // Leader logic: Alert if ANY member is too far
-            const distantMembers = Object.values(members).filter(m => getDistance({ lat: m.lat, lng: m.lng }, pos) > 5);
+            const distantMembers = Object.values(members).filter(m => {
+                const memberDist = getDistance({ lat: m.lat, lng: m.lng }, pos);
+                return memberDist > 5;
+            });
+
             if (distantMembers.length > 0) {
                 setAlert({ type: 'warn', msg: "MEMBER DRIFTING! PLEASE WAIT AT YOUR POSITION." });
             } else {
-                setAlert(null);
+                // Persist alert for 3 seconds after violation clears
+                alertTimeoutRef.current = setTimeout(() => {
+                    setAlert(null);
+                }, 3000);
             }
         } else {
             // Follower logic: Alert if I am too far from leader
             if (shouldBeDrifting) {
                 setAlert({ type: 'danger', msg: "YOU ARE DRIFTING AWAY! FOLLOW THE PATH TO LEADER." });
             } else {
-                setAlert(null);
+                // Persist alert for 3 seconds after violation clears
+                alertTimeoutRef.current = setTimeout(() => {
+                    setAlert(null);
+                }, 3000);
             }
         }
+
+        return () => {
+            if (alertTimeoutRef.current) {
+                clearTimeout(alertTimeoutRef.current);
+            }
+        };
     }, [pos, meetingPoint, members, isLeader, isDrifting]);
 
     function getDistance(p1, p2) {
