@@ -1,285 +1,317 @@
 "use client";
 
-import { motion } from "framer-motion";
 import {
   Users,
   MapPin,
   Camera,
   Shield,
   Navigation,
-  Smartphone,
   Activity,
-  Bot,
   HeartHandshake,
+  Info,
+  ArrowRight,
   Search,
-  ChevronRight,
-  Zap,
-  Eye,
-  Grid,
-  AlertTriangle
+  Stethoscope,
+  Utensils,
+  Hotel,
+  ShoppingBag
 } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
-
-const FEATURE_CATEGORIES = [
-  {
-    title: "Real-Time Group Safety",
-    description: "Advanced proximity tracking for individuals and family units.",
-    color: "blue",
-    features: [
-      { name: "Family Radar", icon: Users, path: "/family", desc: "Private group sync with drift alerts.", tag: "LIVE" },
-      { name: "Live Swarm", icon: MapPin, path: "/location", desc: "Global presence with A* safe routing.", tag: "NEW" },
-      { name: "Proximity HUD", icon: Activity, path: "/live-crowd", desc: "Surrounding density analytics." },
-    ]
-  },
-  {
-    title: "Infrastructure & AI",
-    description: "Sovereign oversight and predictive crowd management.",
-    color: "purple",
-    features: [
-      { name: "CCTV Command", icon: Camera, path: "/cctv", desc: "AI density analysis on live feeds.", tag: "POWERFUL" },
-      { name: "Sector Management", icon: Grid, path: "/sector-map", desc: "Road saturation & flow control.", tag: "ADMIN" },
-      { name: "Stress Tester", icon: Bot, path: "/sim-tracker", desc: "50+ bot swarm stress simulation." },
-    ]
-  },
-  {
-    title: "Community & Recovery",
-    description: "Closing the gap between pilgrims and vital services.",
-    color: "orange",
-    features: [
-      { name: "Safety Feed", icon: Search, path: "/lost/feed", desc: "Real-time lost & found ecosystem." },
-      { name: "Volunteer Portal", icon: HeartHandshake, path: "/volunteer", desc: "AI-verified incident reporting.", tag: "STAFF" },
-      { name: "Business Map", icon: Smartphone, path: "/business-map", desc: "Vendor road-routing & pricing." },
-    ]
-  }
-];
+import { useState } from "react";
 
 export default function LandingPage() {
-  return (
-    <div className="min-h-screen bg-black text-white font-sans selection:bg-blue-500/30 overflow-x-hidden">
-      {/* Background Mesh Gradients */}
-      <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-orange-600/10 blur-[120px] rounded-full"></div>
-        <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-600/10 blur-[120px] rounded-full"></div>
-        <div className="absolute top-[20%] right-[10%] w-[40%] h-[40%] bg-purple-600/10 blur-[120px] rounded-full"></div>
+  const [page, setPage] = useState(1);
+
+  // Common Button Component for large, easy-to-click buttons
+  const BigButton = ({ href, icon: Icon, text, subtext, color = "bg-orange-600" }) => (
+    <Link href={href} className={`w-full ${color} text-white p-6 rounded-2xl shadow-lg flex items-center gap-6 active:scale-95 transition-transform border-b-4 border-black/20 text-left`}>
+      <div className="bg-white/20 p-4 rounded-xl">
+        <Icon className="w-8 h-8 md:w-10 md:h-10 text-white" />
       </div>
+      <div>
+        <h3 className="text-2xl md:text-3xl font-black uppercase tracking-tight">{text}</h3>
+        {subtext && <p className="text-sm md:text-base font-bold opacity-90">{subtext}</p>}
+      </div>
+    </Link>
+  );
 
-      {/* Navbar */}
-      <nav className="relative z-50 flex items-center justify-between px-8 py-6 max-w-7xl mx-auto">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl shadow-lg shadow-orange-500/20">
-            <Shield className="w-6 h-6 text-white" />
+  return (
+    <div className="min-h-screen bg-[#FFFDF5] text-[#1A1A1A] font-sans">
+      {/* Logo/Header Bar */}
+      <header className="bg-white border-b-4 border-orange-500 p-4 sticky top-0 z-50 shadow-md">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-orange-600 rounded-lg">
+              <Shield className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-black uppercase text-orange-600 leading-none">Kumbh Sahayak</h1>
+              <p className="text-[10px] font-bold text-blue-900 uppercase tracking-widest mt-0.5">Nashik Mela 2027</p>
+            </div>
           </div>
-          <span className="text-2xl font-black tracking-tighter uppercase italic">Kumbh Sahayak</span>
+          {page > 1 && (
+            <button
+              onClick={() => setPage(1)}
+              className="bg-blue-900 text-white px-4 py-2 rounded-xl font-bold text-sm uppercase flex items-center gap-2"
+            >
+              ← Home
+            </button>
+          )}
         </div>
-        <div className="hidden md:flex items-center gap-8">
-          {["Features", "Technology", "Demo", "Safety"].map((item) => (
-            <a key={item} href={`#${item.toLowerCase()}`} className="text-sm font-bold text-zinc-400 hover:text-white transition-colors uppercase tracking-widest">{item}</a>
-          ))}
-          <Link href="/location" className="px-6 py-2.5 bg-white text-black rounded-full font-black text-xs uppercase tracking-widest hover:bg-zinc-200 transition-all">
-            Launch Live Map
-          </Link>
-        </div>
-      </nav>
+      </header>
 
-      {/* Hero Section */}
-      <section className="relative z-10 pt-16 pb-24 px-8 max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
-        <motion.div
-          initial={{ opacity: 0, x: -30 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.8 }}
-        >
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-[10px] font-black uppercase tracking-[0.2em] mb-8">
-            <Zap className="w-3 h-3 fill-current" /> Next-Gen Safety Tech
-          </div>
-          <h1 className="text-6xl md:text-8xl font-black leading-[0.9] tracking-tighter mb-8 bg-gradient-to-r from-white via-white to-zinc-500 bg-clip-text text-transparent italic">
-            AI-Powered Safety for <span className="text-orange-500 italic">Kumbh Mela</span>
-          </h1>
-          <p className="text-lg text-zinc-400 font-medium leading-relaxed max-w-xl mb-12">
-            Experience the safest Kumbh Mela ever. Smart routing. AI CCTV synthesis. Private group sync. We unite tradition with state-of-the-art technology to protect millions.
-          </p>
-          <div className="flex flex-wrap gap-4">
-            <Link href="/location" className="px-10 py-5 bg-orange-600 hover:bg-orange-700 text-white rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-2xl shadow-orange-600/40 transition-all active:scale-95 flex items-center gap-3">
-              <Navigation className="w-5 h-5" /> Explore Live Map
-            </Link>
-            <Link href="/lost/feed" className="px-10 py-5 bg-white/5 border border-white/10 text-white rounded-[2rem] font-black text-sm uppercase tracking-widest hover:bg-white/10 transition-all active:scale-95 flex items-center gap-3">
-              <AlertTriangle className="w-5 h-5" /> Report Incident
-            </Link>
-          </div>
+      {/* Page 1: Main Landing */}
+      {page === 1 && (
+        <main className="max-w-4xl mx-auto p-6 space-y-8 pb-32">
+          <section className="text-center py-8">
+            <h2 className="text-3xl md:text-5xl font-black text-blue-900 leading-tight mb-4">
+              Safe movement and group protection for pilgrims
+            </h2>
+            <div className="flex flex-wrap justify-center gap-3 text-sm font-bold text-orange-700 uppercase">
+              <span>English</span> ∙ <span>हिंदी</span> ∙ <span>मराठी</span>
+            </div>
+          </section>
 
-          <div className="mt-16 grid grid-cols-3 gap-8">
-            {[
-              { label: "Pilgrims expected", value: "2M+" },
-              { label: "AI Cam Coverage", value: "24/7" },
-              { label: "Safety Precision", value: "16m" }
-            ].map((stat, i) => (
-              <div key={i}>
-                <div className="text-3xl font-black text-white">{stat.value}</div>
-                <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9, rotateY: 10 }}
-          animate={{ opacity: 1, scale: 1, rotateY: 0 }}
-          transition={{ duration: 1, delay: 0.2 }}
-          className="relative"
-        >
-          <div className="absolute -inset-4 bg-orange-600/20 blur-3xl rounded-[3rem]"></div>
-          <div className="relative rounded-[3rem] overflow-hidden border border-white/10 shadow-3xl aspect-[4/3] group">
-            <Image
-              src="/kumbh-hero.jpg"
-              alt="Kumbh Mela Nashik"
-              fill
-              className="object-cover transition-transform duration-1000 group-hover:scale-110"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
-            <div className="absolute bottom-10 left-10">
-              <div className="bg-black/60 backdrop-blur-xl p-6 rounded-3xl border border-white/10 max-w-[280px]">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Ghat Entrance Cam C</span>
+          {/* Three Main Sections */}
+          <div className="space-y-6">
+            {/* Crowd Safety */}
+            <div className="bg-white border-2 border-gray-200 rounded-3xl p-6 shadow-sm">
+              <div className="flex items-start gap-4 mb-6">
+                <div className="p-3 bg-green-100 rounded-2xl text-green-700">
+                  <Activity className="w-8 h-8" />
                 </div>
-                <p className="text-sm font-bold text-white mb-4 italic">Crowd density within safety parameters.</p>
-                <Link href="/cctv" className="text-[10px] font-black uppercase tracking-widest text-orange-500 flex items-center gap-1 group/link">
-                  View Full Analytics <ChevronRight className="w-3 h-3 transition-transform group-hover/link:translate-x-1" />
-                </Link>
+                <div className="flex-1">
+                  <h3 className="text-2xl font-black text-blue-900">🧭 Crowd Safety / भीड़ सुरक्षा</h3>
+                  <p className="text-lg font-bold text-gray-600 leading-snug mt-1 italic">
+                    "Shows crowded and safe areas. Guides you to less crowded routes."
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPage(2)}
+                className="w-full bg-green-600 text-white py-6 rounded-2xl text-xl font-black uppercase flex items-center justify-center gap-3 shadow-lg border-b-4 border-green-800"
+              >
+                Get Started / शुरू करें <ArrowRight className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Group Safety */}
+            <div className="bg-white border-2 border-gray-200 rounded-3xl p-6 shadow-sm">
+              <div className="flex items-start gap-4 mb-6">
+                <div className="p-3 bg-blue-100 rounded-2xl text-blue-700">
+                  <Users className="w-8 h-8" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex justify-between items-start">
+                    <h3 className="text-2xl font-black text-blue-900">👨‍👩‍👧 Group Safety / परिवार सुरक्षा</h3>
+                    <span className="bg-orange-600 text-white px-3 py-1 rounded-full text-sm font-black italic">₹30 ONLY</span>
+                  </div>
+                  <p className="text-lg font-bold text-gray-600 leading-snug mt-1 italic">
+                    "Do not get separated from family. Get alerts if someone goes missing."
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setPage(4)}
+                className="w-full bg-blue-900 text-white py-6 rounded-2xl text-xl font-black uppercase flex items-center justify-center gap-3 shadow-lg border-b-4 border-blue-950"
+              >
+                Setup Group / ग्रुप बनाएँ <ArrowRight className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Nearby Services */}
+            <div className="bg-white border-2 border-gray-200 rounded-3xl p-6 shadow-sm">
+              <div className="flex items-start gap-4 mb-6">
+                <div className="p-3 bg-orange-100 rounded-2xl text-orange-700">
+                  <MapPin className="w-8 h-8" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-2xl font-black text-blue-900">📍 Nearby Services / आस-पास की सेवाएँ</h3>
+                  <p className="text-lg font-bold text-gray-600 leading-snug mt-1 italic">
+                    "Find food, water, hotels, stalls nearby."
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/business-map"
+                className="w-full bg-orange-600 text-white py-6 rounded-2xl text-xl font-black uppercase flex items-center justify-center gap-3 shadow-lg border-b-4 border-orange-800"
+              >
+                View Nearby / आस-पास देखें <ArrowRight className="w-6 h-6" />
+              </Link>
+            </div>
+          </div>
+        </main>
+      )}
+
+      {/* Page 2 & 3 Combined: How Crowd Safety Works */}
+      {page === 2 && (
+        <main className="max-w-4xl mx-auto p-6 space-y-12 pb-32">
+          <section className="text-center">
+            <h2 className="text-4xl font-black text-blue-900 uppercase underline decoration-orange-500 underline-offset-8">
+              How Crowd Safety Works
+            </h2>
+            <p className="text-xl font-bold mt-4 text-gray-600 italic leading-tight">
+              "Understanding the safety system"
+            </p>
+          </section>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="bg-white border-4 border-blue-900 rounded-[2rem] p-8 space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-900 text-white rounded-full flex items-center justify-center font-black text-2xl">1</div>
+                <h4 className="text-2xl font-black uppercase">Cameras detect crowd</h4>
+              </div>
+              <div className="aspect-video bg-gray-100 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300">
+                <Camera className="w-16 h-16 text-gray-300" />
+              </div>
+              <p className="font-bold text-gray-600 text-lg">Smart cameras across the Mela watch the crowd density in real-time.</p>
+            </div>
+
+            <div className="bg-white border-4 border-blue-900 rounded-[2rem] p-8 space-y-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-900 text-white rounded-full flex items-center justify-center font-black text-2xl">2</div>
+                <h4 className="text-2xl font-black uppercase">Crowd zones marked</h4>
+              </div>
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 p-4 bg-green-100 border-2 border-green-600 rounded-2xl">
+                  <div className="w-6 h-6 bg-green-600 rounded-full"></div>
+                  <span className="text-xl font-black text-green-800 tracking-tight uppercase">Green - Safe Area</span>
+                </div>
+                <div className="flex items-center gap-4 p-4 bg-yellow-100 border-2 border-yellow-600 rounded-2xl">
+                  <div className="w-6 h-6 bg-yellow-600 rounded-full"></div>
+                  <span className="text-xl font-black text-yellow-800 tracking-tight uppercase">Yellow - Medium Crowd</span>
+                </div>
+                <div className="flex items-center gap-4 p-4 bg-red-100 border-2 border-red-600 rounded-2xl">
+                  <div className="w-6 h-6 bg-red-600 rounded-full"></div>
+                  <span className="text-xl font-black text-red-800 tracking-tight uppercase">Red - High Crowd</span>
+                </div>
               </div>
             </div>
           </div>
-        </motion.div>
-      </section>
 
-      {/* Main Features Grid */}
-      <section id="features" className="relative z-10 py-32 px-8 max-w-7xl mx-auto">
-        <div className="text-center mb-24">
-          <h2 className="text-4xl md:text-5xl font-black italic tracking-tighter mb-6">Explore Our Command Center</h2>
-          <p className="text-zinc-500 max-w-2xl mx-auto font-medium">Modular technology built to handle massive scale. Hover over each sector to explore the tools optimized for the 2027 Nashik Mela.</p>
-        </div>
+          <div className="bg-orange-600 text-white p-8 rounded-[2rem] border-b-8 border-orange-800">
+            <div className="flex items-center gap-6 mb-4">
+              <Navigation className="w-12 h-12" />
+              <h4 className="text-3xl font-black uppercase tracking-tight italic">3. App suggests safer route</h4>
+            </div>
+            <p className="text-xl font-bold leading-relaxed">
+              "Users are guided away from danger. The app finds the best green path for your movement."
+            </p>
+          </div>
 
-        <div className="grid md:grid-cols-3 gap-8">
-          {FEATURE_CATEGORIES.map((cat, idx) => (
-            <motion.div
-              key={idx}
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: idx * 0.1 }}
-              className="space-y-6"
+          <div className="space-y-4 pt-8">
+            <Link
+              href="/location"
+              className="w-full bg-blue-900 text-white py-8 rounded-3xl text-2xl font-black uppercase flex items-center justify-center gap-4 shadow-2xl border-b-8 border-black shadow-blue-900/40"
             >
-              <div className="flex items-center gap-4 py-4 border-b border-white/10 mb-4">
-                <div className={`w-3 h-3 rounded-full ${cat.color === 'blue' ? 'bg-blue-600' : cat.color === 'purple' ? 'bg-purple-600' : 'bg-orange-600'}`}></div>
-                <h3 className="text-xl font-black uppercase tracking-tighter italic">{cat.title}</h3>
-              </div>
+              Open Live Map / लाइव नक्शा देखें
+            </Link>
+            <Link
+              href="/sim-tracker"
+              className="w-full bg-orange-600 text-white py-6 rounded-3xl text-xl font-black uppercase flex items-center justify-center gap-4 shadow-xl border-b-6 border-orange-800"
+            >
+              Try Demo / डेमो देखें
+            </Link>
+          </div>
+        </main>
+      )}
 
-              <div className="grid gap-4">
-                {cat.features.map((feature, fIdx) => (
-                  <Link key={fIdx} href={feature.path}>
-                    <div className="group relative bg-[#0a0a0a] border border-white/5 rounded-3xl p-6 hover:border-white/20 hover:bg-neutral-900 transition-all duration-300">
-                      <div className="flex justify-between items-start mb-4">
-                        <div className="p-3 bg-zinc-800 rounded-2xl group-hover:bg-blue-600 group-hover:text-white transition-colors">
-                          <feature.icon className="w-6 h-6" />
-                        </div>
-                        {feature.tag && (
-                          <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1 bg-white/5 text-zinc-500 rounded-full border border-white/5 group-hover:border-blue-500 group-hover:text-blue-500 transition-colors">
-                            {feature.tag}
-                          </span>
-                        )}
-                      </div>
-                      <h4 className="text-lg font-bold text-white mb-2">{feature.name}</h4>
-                      <p className="text-sm text-zinc-500 group-hover:text-zinc-300 transition-colors mb-6">{feature.desc}</p>
-                      <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-zinc-500 group-hover:text-white transition-colors">
-                        Initialize Module <ChevronRight className="w-3 h-3" />
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </section>
+      {/* Page 4: Group Safety & Business */}
+      {page === 4 && (
+        <main className="max-w-4xl mx-auto p-6 space-y-12 pb-32">
+          {/* Group Safety Section */}
+          <section className="bg-white border-4 border-blue-900 rounded-[2.5rem] p-8 shadow-xl">
+            <div className="flex justify-between items-start mb-8">
+              <h2 className="text-4xl font-black text-blue-900 uppercase italic">Do Not Get Lost</h2>
+              <span className="bg-orange-600 text-white px-6 py-2 rounded-full text-xl font-black animate-pulse">₹30 ONLY</span>
+            </div>
 
-      {/* Technical Foundation */}
-      <section id="technology" className="relative z-10 py-32 border-y border-white/5">
-        <div className="max-w-7xl mx-auto px-8 grid md:grid-cols-2 gap-24 items-center">
-          <div>
-            <h2 className="text-4xl font-black italic tracking-tighter mb-8 italic">The Technology Of Truth</h2>
-            <div className="space-y-4">
+            <div className="space-y-6 mb-10">
               {[
-                { title: "Supabase WebSockets", desc: "Nano-latency presence tracking for millions of concurrent users.", icon: Zap },
-                { title: "A* Logic Engine", desc: "Dynamic pathfinding that treats dense crowds as solid obstacles.", icon: Navigation },
-                { title: "Gemini Vision Integration", desc: "AI-verified photo reporting to eliminate false rumors in crowds.", icon: Eye },
-                { title: "Geo-Grid Partitioning", desc: "Precision spatial indexing at 16.7-meter resolution.", icon: Grid },
-              ].map((tech, i) => (
-                <div key={i} className="flex gap-6 p-6 rounded-3xl hover:bg-white/[0.02] transition-colors border border-transparent hover:border-white/5 group">
-                  <div className="shrink-0 w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center group-hover:bg-white group-hover:text-black transition-all">
-                    <tech.icon className="w-5 h-5" />
+                "Create one group for your family",
+                "Add unlimited family members",
+                "Alert if someone goes too far",
+                "Safe route shown to find each other"
+              ].map((point, i) => (
+                <div key={i} className="flex items-center gap-6">
+                  <div className="bg-green-100 p-2 rounded-full">
+                    <HeartHandshake className="w-8 h-8 text-green-600" />
                   </div>
-                  <div>
-                    <h4 className="text-md font-bold text-white mb-1 tracking-tight">{tech.title}</h4>
-                    <p className="text-sm text-zinc-500 leading-relaxed font-medium">{tech.desc}</p>
-                  </div>
+                  <p className="text-2xl font-black text-gray-700 leading-tight tracking-tight uppercase">{point}</p>
                 </div>
               ))}
             </div>
-          </div>
 
-          <div className="relative aspect-square">
-            <div className="absolute inset-0 bg-blue-600/10 blur-[100px] animate-pulse"></div>
-            <div className="relative h-full w-full border border-white/10 rounded-[3rem] bg-zinc-950 p-12 overflow-hidden flex flex-col justify-center gap-8">
-              {/* Mock Grid Visualization */}
-              <div className="grid grid-cols-6 gap-3 opacity-20">
-                {Array.from({ length: 36 }).map((_, i) => (
-                  <div key={i} className={`aspect-square rounded-md border border-white/20 ${i % 7 === 0 ? 'bg-orange-500 border-orange-500' : i % 13 === 0 ? 'bg-red-600 border-red-600' : ''}`}></div>
+            <Link
+              href="/family"
+              className="w-full bg-blue-900 text-white py-8 rounded-3xl text-2xl font-black uppercase flex items-center justify-center gap-4 shadow-2xl border-b-8 border-black"
+            >
+              Activate Group / परिवार जोड़ें
+            </Link>
+          </section>
+
+          {/* Nearby Business Section */}
+          <section className="bg-orange-50 border-4 border-orange-500 rounded-[2.5rem] p-8">
+            <h2 className="text-4xl font-black text-orange-700 uppercase italic mb-8">📍 Nearby Services</h2>
+
+            <div className="grid grid-cols-2 gap-4 mb-10">
+              {[
+                { icon: Utensils, label: "Food Stalls" },
+                { icon: Hotel, label: "Hotels" },
+                { icon: Stethoscope, label: "Medical Help" },
+                { icon: ShoppingBag, label: "Shops" }
+              ].map((item, i) => (
+                <div key={i} className="bg-white p-6 rounded-2xl border-2 border-orange-200 flex flex-col items-center gap-3">
+                  <item.icon className="w-12 h-12 text-orange-600" />
+                  <span className="text-xl font-black uppercase text-blue-900">{item.label}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl border-2 border-gray-200 mb-8">
+              <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4">Try searching for:</p>
+              <div className="flex flex-wrap gap-3">
+                {["Ice cream", "Water", "Doctor", "Temple"].map(s => (
+                  <span key={s} className="px-4 py-2 bg-gray-100 rounded-lg text-lg font-black text-gray-700 border border-gray-300">"{s}"</span>
                 ))}
               </div>
-              <div className="bg-neutral-900 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-10 rounded-[2rem] border border-white/10 shadow-2xl text-center w-[80%]">
-                <Activity className="w-12 h-12 text-blue-500 mx-auto mb-6" />
-                <h3 className="text-2xl font-black uppercase tracking-tighter italic mb-4">Swarm Logic v4.1</h3>
-                <p className="text-sm text-zinc-500 font-medium">Processing 2,401 vectors/sec. All safe-zones identified.</p>
-              </div>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Quick QR CTA */}
-      <section className="relative z-10 py-32 px-8 text-center bg-gradient-to-b from-transparent to-orange-600/5">
-        <div className="max-w-4xl mx-auto p-12 bg-zinc-950 border border-white/10 rounded-[3rem] shadow-3xl">
-          <Shield className="w-16 h-16 text-orange-500 mx-auto mb-10" />
-          <h2 className="text-5xl font-black italic tracking-tighter mb-6 italic">Scan. Connect. Stay Safe.</h2>
-          <p className="text-zinc-400 font-medium text-lg leading-relaxed mb-12">
-            Ready to deploy the safest pilgrimage in history? Launch the modules directly from your mobile device and experience the future of mass management.
-          </p>
-          <div className="inline-block p-6 bg-white rounded-3xl mb-12">
-            {/* Conceptual QR Code Placeholder */}
-            <div className="w-48 h-48 bg-neutral-900 rounded-2xl flex items-center justify-center p-4">
-              <Smartphone className="w-24 h-24 text-white opacity-20" />
-            </div>
-            <p className="text-black text-[10px] font-black uppercase tracking-widest mt-4">Kumbh Guard v2.0</p>
-          </div>
-          <div>
-            <Link href="/location" className="px-12 py-6 bg-orange-600 text-white rounded-[2rem] font-black text-sm uppercase tracking-widest hover:bg-orange-700 transition-all shadow-xl shadow-orange-600/30">
-              Start Real-Time Demo
+            <Link
+              href="/business-map"
+              className="w-full bg-orange-600 text-white py-8 rounded-3xl text-2xl font-black uppercase flex items-center justify-center gap-4 shadow-2xl border-b-8 border-orange-800"
+            >
+              View All on Map / नक़्शे पर देखें
             </Link>
-          </div>
-        </div>
-      </section>
+          </section>
+        </main>
+      )}
 
-      <footer className="relative z-10 py-16 px-8 border-t border-white/5 opacity-50">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-          <div className="flex items-center gap-3">
-            <Shield className="w-5 h-5" />
-            <span className="text-sm font-black uppercase italic">Kumbh Sahayak 2027</span>
-          </div>
-          <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-            &copy; 2026 AI-Powered Massive Safety Systems. Nashik Division.
-          </div>
-        </div>
-      </footer>
+      {/* Language Selection Footer (Sticky) */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t-4 border-blue-900 p-3 flex justify-around items-center z-50">
+        <button className="text-xs font-black uppercase tracking-widest text-blue-900 flex flex-col items-center">
+          <Info className="w-5 h-5 mb-1" />
+          Help
+        </button>
+        <div className="h-8 w-px bg-gray-200"></div>
+        <button className="text-[10px] font-black uppercase tracking-tighter text-blue-900 text-center leading-none">
+          Nashik <br /> 2027
+        </button>
+        <div className="h-8 w-px bg-gray-200"></div>
+        <button className="text-xs font-black uppercase tracking-widest text-blue-900 flex flex-col items-center">
+          <HeartHandshake className="w-5 h-5 mb-1" />
+          Volunteer
+        </button>
+      </div>
+
+      <style jsx global>{`
+                body {
+                    background-color: #FFFDF5;
+                }
+                h1, h2, h3, h4, button {
+                    letter-spacing: -0.02em;
+                }
+            `}</style>
     </div>
   );
 }
