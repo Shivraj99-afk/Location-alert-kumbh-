@@ -75,9 +75,9 @@ export async function GET(req) {
     const myRLat = Math.floor(lat / LAT_STEP);
     const myRLng = Math.floor(lng / LNG_STEP);
 
-    // Increase snippet size for better pathfinding (11x11)
-    for (let dr = -5; dr <= 5; dr++) {
-        for (let dc = -5; dc <= 5; dc++) {
+    // Increase snippet size for wide safety detours (15x15)
+    for (let dr = -7; dr <= 7; dr++) {
+        for (let dc = -7; dc <= 7; dc++) {
             const r = myRLat + dr;
             const c = myRLng + dc;
             const id = `${r},${c}`;

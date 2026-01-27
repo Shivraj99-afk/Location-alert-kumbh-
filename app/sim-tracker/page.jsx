@@ -109,22 +109,8 @@ export default function SimulationTracker() {
         return () => clearInterval(interval);
     }, [pos, userId, forceSafePath]);
 
-    // Precise Routing Logic (Fallback to OSRM only if API path fails)
-    useEffect(() => {
-        if (!pos || !manualTarget || navigationPath) return;
-
-        const fetchRoute = async () => {
-            try {
-                const url = `https://router.project-osrm.org/route/v1/walking/${pos.lng},${pos.lat};${manualTarget.lng},${manualTarget.lat}?overview=full&geometries=geojson`;
-                const res = await fetch(url);
-                const data = await res.json();
-                if (data.routes?.[0]) {
-                    setNavigationPath(data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]));
-                }
-            } catch (err) { console.error(err); }
-        };
-        fetchRoute();
-    }, [manualTarget?.lat, manualTarget?.lng, navigationPath === null]);
+    // Rerouting is now handled exclusively by the Grid-based SafestPath API.
+    // No road logic is used, making it perfect for open fields like Ram Kund.
 
     if (!pos) return <div className="h-screen w-full flex items-center justify-center bg-zinc-950 text-blue-400 font-mono">LOADING SIMULATION...</div>;
 

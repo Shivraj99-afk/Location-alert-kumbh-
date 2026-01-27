@@ -140,27 +140,8 @@ export default function LocationPage() {
     }
   };
 
-  // Rerouting Logic is now handled by the API (recommendedCell comes from sync)
-
-  // Precise Routing Logic (Fallback to OSRM only if API path is unavailable)
-  useEffect(() => {
-    if (!pos || !manualTarget || navigationPath) return;
-
-    const fetchRoute = async () => {
-      try {
-        const url = `https://router.project-osrm.org/route/v1/walking/${pos.lng},${pos.lat};${manualTarget.lng},${manualTarget.lat}?overview=full&geometries=geojson`;
-        const res = await fetch(url);
-        const data = await res.json();
-        if (data.routes && data.routes.length > 0) {
-          const path = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
-          setNavigationPath(path);
-        }
-      } catch (err) {
-        console.error("Routing error:", err);
-      }
-    };
-    fetchRoute();
-  }, [manualTarget?.lat, manualTarget?.lng, navigationPath === null]);
+  // Rerouting Logic is now handled 100% by the API SafestPath (Grid-based, NO ROADS)
+  // This ensures we avoid crowds in open fields like Ram Kund.
 
   if (!pos) {
     return (
