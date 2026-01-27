@@ -8,20 +8,20 @@ const GenericSectorMap = dynamic(() => import("../components/GenericSectorMap"),
 });
 
 const originalPoints = [
-    [20.0090101, 73.7918293],
-    [20.0091008, 73.7926876],
-    [20.0085564, 73.7930417],
-    [20.0081633, 73.7928485],
-    [20.0080927, 73.7920546],
-    [20.0086472, 73.7917971]
+    [20.00757605670214, 73.79027366638185],
+    [20.009171010117733, 73.79168987274171],
+    [20.004688948010305, 73.7934708595276],
+    [20.00412363381382, 73.79128217697145]
 ];
 
 export default function SectorManagementPage() {
     return (
         <GenericSectorMap
             points={originalPoints}
-            mapCenter={[20.0086, 73.7924]}
-            namePrefix="Main"
+            mapCenter={[20.00639, 73.79168]}
+            namePrefix="Regional"
+            rows={6}
+            cols={6}
         />
     );
 }

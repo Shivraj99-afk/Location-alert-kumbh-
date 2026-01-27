@@ -17,7 +17,7 @@ const Tooltip = dynamic(() => import("react-leaflet").then((m) => m.Tooltip), { 
 const Polyline = dynamic(() => import("react-leaflet").then((m) => m.Polyline), { ssr: false });
 
 export default function LocationPage() {
-  const [userId] = useState(() => `u-${uuid().slice(0, 8)}`);
+  const [userId] = useState(() => `u-${uuid().slice(0, 16)}`); // Longer ID to prevent collisions
   const [position, setPosition] = useState(null);
   const [accuracy, setAccuracy] = useState(null);
   const [isGpsActive, setIsGpsActive] = useState(false);
@@ -63,12 +63,13 @@ export default function LocationPage() {
 
     channel
       .on('presence', { event: 'sync' }, () => {
-        const newState = channel.presenceState();
+        const state = channel.presenceState();
         const formattedPeers = {};
 
-        Object.keys(newState).forEach(key => {
+        Object.keys(state).forEach(key => {
           if (key !== userId) {
-            formattedPeers[key] = newState[key][0];
+            // Take the latest state for this user ID
+            formattedPeers[key] = state[key][state[key].length - 1];
           }
         });
         setPeers(formattedPeers);
@@ -250,11 +251,11 @@ export default function LocationPage() {
             <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
             {isGpsActive ? 'WS REAL-TIME GPS ACTIVE' : 'SOCKET OFFLINE'}
           </div>
-          <div className="bg-black/90 backdrop-blur-xl p-4 rounded-[1.5rem] border border-white/10 text-white font-mono text-xs pointer-events-auto shadow-2xl">
-            <p className="text-blue-400 font-bold mb-1 underline text-[10px] tracking-widest">NETWORK HUD</p>
+          <div className="bg-black/80 backdrop-blur-xl p-4 rounded-[1.5rem] border border-white/10 text-white font-mono text-xs pointer-events-auto shadow-2xl">
+            <p className="text-blue-400 font-bold mb-1 underline text-[10px] tracking-widest uppercase">Network Saturation</p>
             <p className="flex justify-between gap-4">RANK: <span className="text-yellow-400 font-black">#{rankInCell}</span></p>
-            <p className="flex justify-between gap-4">LIMIT: <span className="text-white/60">{crowdLimit} PERS</span></p>
-            <p className="flex justify-between gap-4 mt-1 pt-1 border-t border-white/5 opacity-50">PEERS: <span>{Object.keys(peers).length}</span></p>
+            <p className="flex justify-between gap-4">TOTAL SWARM: <span className="text-emerald-400 font-black">{Object.keys(peers).length + 1}</span></p>
+            <p className="flex justify-between gap-4 mt-1 pt-1 border-t border-white/5 opacity-40 text-[9px]">PEERS: <span>{Object.keys(peers).length}</span></p>
           </div>
         </div>
 
