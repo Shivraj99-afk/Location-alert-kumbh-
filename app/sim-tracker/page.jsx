@@ -219,70 +219,91 @@ export default function SimulationTracker() {
                 {/* Test Boundary */}
                 <Polygon positions={testPolygon} pathOptions={{ color: "blue", weight: 2, fillOpacity: 0.05, dashArray: "5, 10" }} />
 
-                {/* Grid cells - Reduced to 9x9 (81 cells) for cleaner visuals */}
-                {(gridCrowd.length > 0 ? gridCrowd : Array.from({ length: 81 }).map((_, i) => {
-                    const r = Math.floor(i / 9) - 4;
-                    const c = (i % 9) - 4;
+                {/* Grid cells - 9x9 Centered around User */}
+                {(() => {
                     const myRLat = Math.floor(pos.lat / LAT_STEP);
                     const myRLng = Math.floor(pos.lng / LNG_STEP);
-                    const rid = (myRLat + r);
-                    const cid = (myRLng + c);
-                    return {
-                        id: `${rid},${cid}`,
-                        lat: rid * LAT_STEP,
-                        lng: cid * LNG_STEP,
-                        count: Math.floor(Math.random() * 5) // Random crowd for demo
-                    };
-                })).slice(0, 81).map((cell, idx) => {
-                    const isMe = cell.id === myCell;
-                    const isRec = recommendedCell && cell.id === recommendedCell.id;
-                    const isSel = manualTarget && cell.id === manualTarget.cellId;
-                    const isSimRed = cell.count > crowdLimit;
 
-                    let color = "#10b981";
-                    if (isSimRed) color = "#ef4444";
-                    else if (cell.count > 0) color = "#f59e0b";
-                    if (isRec || isSel) color = "#3b82f6";
+                    // Create set of displayed cell IDs for quick check
+                    const displayedCells = [];
+                    for (let r = -4; r <= 4; r++) {
+                        for (let c = -4; c <= 4; c++) {
+                            const rid = myRLat + r;
+                            const cid = myRLng + c;
+                            const id = `${rid},${cid}`;
 
-                    return (
-                        <Polygon
-                            key={cell.id}
-                            positions={[
-                                [cell.lat, cell.lng],
-                                [cell.lat + LAT_STEP, cell.lng],
-                                [cell.lat + LAT_STEP, cell.lng + LNG_STEP],
-                                [cell.lat, cell.lng + LNG_STEP]
-                            ]}
-                            pathOptions={{
-                                color: isRec || isSel ? "#3b82f6" : "white",
-                                fillColor: color,
-                                fillOpacity: isMe ? 0.6 : (isSimRed ? 0.5 : 0.35),
-                                weight: isMe || isRec || isSel ? 3 : 0.5
-                            }}
-                            eventHandlers={{
-                                click: (e) => handleCellClick(e, cell)
-                            }}
-                        >
-                            <Tooltip permanent={isMe || isRec || isSel} direction="center" className="sim-tooltip">
-                                <div className="text-[9px] font-black text-white text-shadow">
-                                    {isMe ? 'YOU' : (isSel ? 'TARGET' : (isRec ? 'RECO' : `SEC ${idx}`))}
-                                    <br />👥 {cell.count}
-                                </div>
-                            </Tooltip>
-                        </Polygon>
-                    );
-                })}
+                            // Find existing data or create dummy
+                            let cellData = gridCrowd.find(gc => gc.id === id);
+                            if (!cellData) {
+                                cellData = {
+                                    id,
+                                    lat: rid * LAT_STEP,
+                                    lng: cid * LNG_STEP,
+                                    count: 0
+                                };
+                            }
 
-                {/* Safest AI Route Visualization */}
+                            // Simulation Override: Inject Red Zone just ahead (North) of user
+                            if (r === 2 && c === 0) {
+                                cellData.count = crowdLimit + 10;
+                                cellData.isDangerZone = true;
+                            }
+
+                            displayedCells.push(cellData);
+                        }
+                    }
+
+                    return displayedCells.map((cell, idx) => {
+                        const isMe = cell.id === myCell;
+                        const isRec = recommendedCell && cell.id === recommendedCell.id;
+                        const isSel = manualTarget && cell.id === manualTarget.cellId;
+                        const isSimRed = cell.count > crowdLimit;
+
+                        let color = "#10b981"; // Safe (Green)
+                        if (isSimRed) color = "#ef4444"; // Danger (Red)
+                        else if (cell.count > 0) color = "#f59e0b"; // Warning (Yellow)
+                        if (isRec || isSel) color = "#3b82f6"; // Recommended/Selected (Blue)
+
+                        return (
+                            <Polygon
+                                key={cell.id}
+                                positions={[
+                                    [cell.lat, cell.lng],
+                                    [cell.lat + LAT_STEP, cell.lng],
+                                    [cell.lat + LAT_STEP, cell.lng + LNG_STEP],
+                                    [cell.lat, cell.lng + LNG_STEP]
+                                ]}
+                                pathOptions={{
+                                    color: isMe ? "white" : (isRec || isSel ? "#3b82f6" : "rgba(255,255,255,0.1)"),
+                                    fillColor: color,
+                                    fillOpacity: isMe ? 0.7 : (isSimRed ? 0.6 : 0.3),
+                                    weight: isMe || isRec || isSel ? 3 : 1
+                                }}
+                                eventHandlers={{
+                                    click: (e) => handleCellClick(e, cell)
+                                }}
+                            >
+                                <Tooltip permanent={isMe || isRec || isSel || cell.isDangerZone} direction="center" className="sim-tooltip">
+                                    <div className="text-[9px] font-black text-white text-shadow text-center">
+                                        {isMe ? 'YOU' : (isSel ? 'TARGET' : (isRec ? 'SAFE DEV' : (cell.isDangerZone ? 'DANGER' : `SEC ${idx}`)))}
+                                        <br />{isSimRed ? '⚠️' : '👥'} {cell.count}
+                                    </div>
+                                </Tooltip>
+                            </Polygon>
+                        );
+                    });
+                })()}
+
+                {/* Safest AI Route Visualization - Simple & High Visibility */}
                 {navigationPath && navigationPath.length > 0 && (
                     <>
                         <Polyline
                             positions={navigationPath}
-                            pathOptions={{ color: "#3b82f6", weight: 8, lineCap: "round", opacity: 0.3, className: "glow-path" }}
+                            pathOptions={{ color: "#3b82f6", weight: 6, lineCap: "round", opacity: 0.6, className: "glow-path" }}
                         />
                         <Polyline
                             positions={navigationPath}
-                            pathOptions={{ color: "#ffffff", weight: 2, lineCap: "round", opacity: 0.8, dashArray: "1, 12" }}
+                            pathOptions={{ color: "#ffffff", weight: 2, lineCap: "round", opacity: 1, dashArray: "10, 10" }}
                         />
                     </>
                 )}
