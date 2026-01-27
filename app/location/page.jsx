@@ -221,7 +221,7 @@ export default function LocationPage() {
         zoomControl={false}
         ref={mapRef}
       >
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" className="map-tiles" />
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
         {/* Sections in nearby area */}
         {gridData.map((cell) => {
@@ -284,7 +284,7 @@ export default function LocationPage() {
         .sim-tooltip { background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
         .text-shadow { text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
         .leaflet-container { background: #000 !important; }
-        .map-tiles { filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }
+
         @keyframes slide-in-from-bottom-5 {
             from { transform: translateY(20px) translateX(-50%); opacity: 0; }
             to { transform: translateY(0) translateX(-50%); opacity: 1; }
