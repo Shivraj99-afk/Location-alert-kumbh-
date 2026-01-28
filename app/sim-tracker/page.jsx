@@ -207,10 +207,8 @@ export default function SimulationTracker() {
                             </div>
                             <div>
                                 <h3 className="font-black uppercase tracking-tighter text-lg leading-tight">
-                                    {manualTarget ? 'Navigate to Selected Zone' : 'Proceed to Safe Zone'}
                                 </h3>
                                 <p className="text-xs text-blue-100 opacity-70">
-                                    {manualTarget ? 'Safest route calculated' : 'Redirecting to avoid crowd bottleneck'}
                                 </p>
                             </div>
                         </div>
