@@ -31,9 +31,11 @@ export default function FamilyTracker() {
     const [members, setMembers] = useState({});
     const [alert, setAlert] = useState(null);
     const [isGpsActive, setIsGpsActive] = useState(false);
+    const [initialPositions, setInitialPositions] = useState({}); // Track initial positions
 
     const mapRef = useRef(null);
     const channelRef = useRef(null);
+    const myInitialPosRef = useRef(null); // Track my initial position
 
     // Initialize Icons
     useEffect(() => {
@@ -69,14 +71,24 @@ export default function FamilyTracker() {
                 const state = channel.presenceState();
                 const m = {};
                 Object.keys(state).forEach(key => {
-                    if (key !== userId) m[key] = state[key][0];
+                    if (key !== userId) {
+                        m[key] = state[key][0];
+                        // Store initial position for new members
+                        setInitialPositions(prev => {
+                            if (!prev[key]) {
+                                return { ...prev, [key]: { lat: state[key][0].lat, lng: state[key][0].lng } };
+                            }
+                            return prev;
+                        });
+                    }
                 });
                 setMembers(m);
             })
             .on('presence', { event: 'join' }, ({ key, newPresences }) => {
                 if (key !== userId) {
-                    setAlert({ type: 'info', msg: `${newPresences[0].name} joined the family.` });
-                    setTimeout(() => setAlert(null), 3000);
+                    // Don't show join notification immediately - wait for movement
+                    // setAlert({ type: 'info', msg: `${newPresences[0].name} joined the family.` });
+                    // setTimeout(() => setAlert(null), 3000);
                 }
             })
             .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
@@ -102,6 +114,11 @@ export default function FamilyTracker() {
                 setPos(newPos);
                 setIsGpsActive(true);
 
+                // Store my initial position
+                if (!myInitialPosRef.current) {
+                    myInitialPosRef.current = newPos;
+                }
+
                 if (channelRef.current) {
                     channelRef.current.track({
                         lat: p.coords.latitude,
@@ -119,33 +136,49 @@ export default function FamilyTracker() {
         return () => navigator.geolocation.clearWatch(watchId);
     }, [isJoined, userName, userId]);
 
-    // Calculate Meeting Point (Centroid)
+    // Calculate Meeting Point (use initial positions - where everyone started)
     const meetingPoint = useMemo(() => {
-        const all = [pos, ...Object.values(members).map(m => ({ lat: m.lat, lng: m.lng }))].filter(Boolean);
-        if (all.length < 2) return null;
+        // Only show meeting point if we have initial positions
+        if (!myInitialPosRef.current) return null;
 
-        const avgLat = all.reduce((s, p) => s + p.lat, 0) / all.length;
-        const avgLng = all.reduce((s, p) => s + p.lng, 0) / all.length;
-        return { lat: avgLat, lng: avgLng };
+        // Use my initial position as the reference point
+        return myInitialPosRef.current;
     }, [pos, members]);
 
-    // Distance Alert Logic
+    // Distance Alert Logic - only alert when someone moves from their INITIAL position
     useEffect(() => {
-        if (!meetingPoint || !pos) return;
+        if (!pos || !myInitialPosRef.current) return;
 
-        const dist = getDistance(pos, meetingPoint);
-        if (dist >5) { // If user is more than 50m away from family center
-            setAlert({ type: 'danger', msg: "YOU ARE DRIFTING AWAY! FOLLOW THE PATH." });
-        } else {
-            // Check if others are drifting
-            const drifters = Object.values(members).filter(m => getDistance({ lat: m.lat, lng: m.lng }, meetingPoint) > 50);
-            if (drifters.length > 0) {
-                setAlert({ type: 'warn', msg: `${drifters[0].name} is drifting away from the group!` });
-            } else {
-                setAlert(null);
-            }
+        const DRIFT_THRESHOLD = 50; // 50 meters
+
+        // Check if I'm drifting from MY initial position
+        const myDrift = getDistance(pos, myInitialPosRef.current);
+        if (myDrift > DRIFT_THRESHOLD) {
+            setAlert({ type: 'danger', msg: "YOU ARE DRIFTING AWAY FROM YOUR STARTING POINT!" });
+            return;
         }
-    }, [pos, meetingPoint, members]);
+
+        // Check if others are drifting from THEIR initial positions
+        const drifters = Object.keys(members).filter(memberId => {
+            const member = members[memberId];
+            const memberInitialPos = initialPositions[memberId];
+
+            if (!memberInitialPos) return false; // No initial position yet
+
+            const memberCurrentPos = { lat: member.lat, lng: member.lng };
+            const drift = getDistance(memberCurrentPos, memberInitialPos);
+
+            return drift > DRIFT_THRESHOLD;
+        });
+
+        if (drifters.length > 0) {
+            const drifterName = members[drifters[0]].name;
+            setAlert({ type: 'warn', msg: `${drifterName} is drifting away from their starting point!` });
+        } else if (myDrift <= DRIFT_THRESHOLD) {
+            // Clear alert only if no one is drifting
+            setAlert(null);
+        }
+    }, [pos, members, initialPositions]);
 
     function getDistance(p1, p2) {
         const R = 6371e3;
@@ -275,15 +308,15 @@ export default function FamilyTracker() {
                                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                             </div>
                             <div>
-                                <h3 className="font-black uppercase tracking-tighter text-lg leading-tight">Meeting Center</h3>
-                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Follow your personal meeting path</p>
+                                <h3 className="font-black uppercase tracking-tighter text-lg leading-tight">Starting Point</h3>
+                                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Stay close to where you started</p>
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                             <div className="bg-gray-100 p-3 rounded-2xl flex flex-col items-center">
                                 <span className="text-[8px] font-black text-gray-400 uppercase">You are</span>
                                 <span className="text-xl font-black text-blue-600">{Math.round(getDistance(pos || { lat: 0, lng: 0 }, meetingPoint))}m</span>
-                                <span className="text-[8px] font-bold text-gray-400 uppercase">From Center</span>
+                                <span className="text-[8px] font-bold text-gray-400 uppercase">From Start</span>
                             </div>
                             <button onClick={() => mapRef.current?.flyTo([meetingPoint.lat, meetingPoint.lng], 18)} className="bg-gray-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-800 transition-all">
                                 Center Map
@@ -323,17 +356,25 @@ export default function FamilyTracker() {
                                     {members[id].name}
                                 </div>
                             </Tooltip>
-                            {/* Path from member to meeting point */}
-                            {meetingPoint && (
-                                <Polyline
-                                    positions={[[members[id].lat, members[id].lng], [meetingPoint.lat, meetingPoint.lng]]}
-                                    pathOptions={{ color: '#3b82f6', weight: 2, dashArray: '5, 10', opacity: 0.3 }}
-                                />
+                            {/* Path from member to THEIR initial position */}
+                            {initialPositions[id] && (
+                                <>
+                                    <Polyline
+                                        positions={[[members[id].lat, members[id].lng], [initialPositions[id].lat, initialPositions[id].lng]]}
+                                        pathOptions={{ color: '#3b82f6', weight: 2, dashArray: '5, 10', opacity: 0.3 }}
+                                    />
+                                    {/* Show their initial position marker */}
+                                    <Circle
+                                        center={[initialPositions[id].lat, initialPositions[id].lng]}
+                                        radius={3}
+                                        pathOptions={{ color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.5, weight: 1 }}
+                                    />
+                                </>
                             )}
                         </Circle>
                     ))}
 
-                    {/* Meeting Point Star */}
+                    {/* MY Starting Point Marker */}
                     {meetingPoint && (
                         <>
                             <Circle
