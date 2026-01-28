@@ -137,6 +137,12 @@ export default function SimulationTracker() {
     }, [userId, forceSafePath, manualTarget]);
 
     const handleCellClick = (e, cell) => {
+        // Prevent clicking on red zones (crowded cells)
+        if (cell.count > crowdLimit) {
+            alert('⚠️ Cannot navigate to red zone!\n\nThis area is overcrowded and blocked.\nPlease select a green or yellow cell.');
+            return;
+        }
+
         // Set the center of the cell as the target
         const targetLat = cell.lat + LAT_STEP / 2;
         const targetLng = cell.lng + LNG_STEP / 2;
@@ -285,15 +291,16 @@ export default function SimulationTracker() {
                                 color: isRec || isSel ? "#3b82f6" : "white",
                                 fillColor: color,
                                 fillOpacity: isMe ? 0.6 : (isSimRed ? 0.5 : 0.35),
-                                weight: isMe || isRec || isSel ? 3 : 0.5
+                                weight: isMe || isRec || isSel ? 3 : 0.5,
+                                className: isSimRed ? 'red-zone-blocked' : 'cell-clickable'
                             }}
                             eventHandlers={{
                                 click: (e) => handleCellClick(e, cell)
                             }}
                         >
-                            <Tooltip permanent={isMe || isRec || isSel} direction="center" className="sim-tooltip">
+                            <Tooltip permanent={isMe || isRec || isSel || isSimRed} direction="center" className="sim-tooltip">
                                 <div className="text-[9px] font-black text-white text-shadow">
-                                    {isMe ? 'YOU' : (isSel ? 'TARGET' : (isRec ? 'RECO' : `SEC ${idx}`))}
+                                    {isMe ? 'YOU' : (isSel ? 'TARGET' : (isRec ? 'RECO' : (isSimRed ? '🚫 BLOCKED' : `SEC ${idx}`)))}
                                     <br />👥 {cell.count}
                                 </div>
                             </Tooltip>
@@ -332,6 +339,11 @@ export default function SimulationTracker() {
                 .sim-tooltip { background: transparent !important; border: none !important; box-shadow: none !important; }
                 .text-shadow { text-shadow: 0 1px 4px rgba(0,0,0,0.8); }
                 .leaflet-container { background: #000 !important; }
+                
+                /* Cursor feedback for cells */
+                .red-zone-blocked { cursor: not-allowed !important; }
+                .cell-clickable { cursor: pointer !important; }
+                
                 @keyframes slide-in-from-bottom-5 {
                     from { transform: translateY(20px) translateX(-50%); opacity: 0; }
                     to { transform: translateY(0) translateX(-50%); opacity: 1; }
