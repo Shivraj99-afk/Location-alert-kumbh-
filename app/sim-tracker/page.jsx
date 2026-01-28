@@ -137,9 +137,8 @@ export default function SimulationTracker() {
     }, [userId, forceSafePath, manualTarget]);
 
     const handleCellClick = (e, cell) => {
-        // Prevent clicking on red zones (crowded cells)
+        // Silently prevent clicking on red zones (crowded cells)
         if (cell.count > crowdLimit) {
-            alert('⚠️ Cannot navigate to red zone!\n\nThis area is overcrowded and blocked.\nPlease select a green or yellow cell.');
             return;
         }
 
@@ -298,9 +297,9 @@ export default function SimulationTracker() {
                                 click: (e) => handleCellClick(e, cell)
                             }}
                         >
-                            <Tooltip permanent={isMe || isRec || isSel || isSimRed} direction="center" className="sim-tooltip">
+                            <Tooltip permanent={isMe || isRec || isSel} direction="center" className="sim-tooltip">
                                 <div className="text-[9px] font-black text-white text-shadow">
-                                    {isMe ? 'YOU' : (isSel ? 'TARGET' : (isRec ? 'RECO' : (isSimRed ? '🚫 BLOCKED' : `SEC ${idx}`)))}
+                                    {isMe ? 'YOU' : (isSel ? 'TARGET' : (isRec ? 'RECO' : `SEC ${idx}`))}
                                     <br />👥 {cell.count}
                                 </div>
                             </Tooltip>
