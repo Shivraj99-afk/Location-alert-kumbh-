@@ -149,7 +149,7 @@ export default function FamilyTracker() {
     useEffect(() => {
         if (!pos || !myInitialPosRef.current) return;
 
-        const DRIFT_THRESHOLD = 50; // 50 meters
+        const DRIFT_THRESHOLD = 5; // 5 meters
 
         // Check if I'm drifting from MY initial position
         const myDrift = getDistance(pos, myInitialPosRef.current);
