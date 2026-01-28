@@ -134,7 +134,7 @@ export default function FamilyTracker() {
         if (!meetingPoint || !pos) return;
 
         const dist = getDistance(pos, meetingPoint);
-        if (dist >20) { // If user is more than 50m away from family center
+        if (dist >5) { // If user is more than 50m away from family center
             setAlert({ type: 'danger', msg: "YOU ARE DRIFTING AWAY! FOLLOW THE PATH." });
         } else {
             // Check if others are drifting
