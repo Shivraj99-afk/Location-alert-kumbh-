@@ -31,17 +31,22 @@ export async function GET(req) {
     const gridCrowd = {};
 
     // 1. INJECT DUMMY CROWD DATA (Testing Simulation)
-    // We'll make specific cells around the Nashik test area "RED"
-    // Area approx: Lat 19.971 - 19.974, Lng 73.743 - 73.746
-    const dummyCells = [
-        "44384,147488", // Near center
-        "44384,147489", // Right of center
-        "44385,147488", // Above center
-        "44385,147489"  // Top right
+    // Create a 5-cell L-shaped red zone obstacle for pathfinding testing
+    // This matches the frontend visualization
+    const myRLat = Math.floor(lat / LAT_STEP);
+    const myRLng = Math.floor(lng / LNG_STEP);
+
+    const redZoneOffsets = [
+        [0, 1],   // Right of user
+        [0, 2],   // 2 cells right
+        [-1, 1],  // Above-right
+        [-1, 2],  // Above-right diagonal
+        [1, 1]    // Below-right
     ];
 
-    dummyCells.forEach(id => {
-        gridCrowd[id] = settings.crowdLimit + 5; // Force RED
+    redZoneOffsets.forEach(([dr, dc]) => {
+        const cellId = `${myRLat + dr},${myRLng + dc}`;
+        gridCrowd[cellId] = settings.crowdLimit + 5; // Force RED (impassable)
     });
 
     // 2. Process real users
@@ -72,8 +77,7 @@ export async function GET(req) {
 
     let recommendation = null;
     const gridSnippet = [];
-    const myRLat = Math.floor(lat / LAT_STEP);
-    const myRLng = Math.floor(lng / LNG_STEP);
+    // myRLat and myRLng already declared above for red zone creation
 
     // Increased snippet size for wide safety detours (21x21)
     for (let dr = -10; dr <= 10; dr++) {

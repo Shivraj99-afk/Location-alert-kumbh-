@@ -61,10 +61,10 @@ function isPointInPoly(point, vs) {
 }
 
 const crowdLevels = {
-    null: { color: "#3b82f6", label: "No Data", fillColor: "#3b82f6" },
-    1: { color: "#22c55e", label: "Low", fillColor: "#22c55e" },
-    2: { color: "#eab308", label: "Medium", fillColor: "#eab308" },
-    3: { color: "#ef4444", label: "Heavy", fillColor: "#ef4444" }
+    null: { color: "#94a3b8", label: "Clear", fillColor: "#94a3b8" },
+    1: { color: "#10b981", label: "Low Density", fillColor: "#10b981" },
+    2: { color: "#f59e0b", label: "Medium Density", fillColor: "#f59e0b" },
+    3: { color: "#f43f5e", label: "High Density", fillColor: "#f43f5e" }
 };
 
 export default function GenericSectorMap({ points, crowdRoad = [], safeRoad = [], startPos = null, mapCenter, namePrefix = "Zone", rows = 5, cols = 5 }) {
@@ -100,7 +100,21 @@ export default function GenericSectorMap({ points, crowdRoad = [], safeRoad = []
             try {
                 const res = await fetch("/api/crowd/update");
                 const data = await res.json();
-                setSectionCrowd(data);
+
+                // If no data, populate with some random demo data for visualization
+                if (Object.keys(data).length === 0) {
+                    const demoData = {};
+                    gridSections.forEach(s => {
+                        // Randomly assign 1 (Low), 2 (Medium), 3 (High) or null
+                        const rand = Math.random();
+                        if (rand > 0.4) {
+                            demoData[`${namePrefix}-${s.id}`] = Math.floor(Math.random() * 3) + 1;
+                        }
+                    });
+                    setSectionCrowd(demoData);
+                } else {
+                    setSectionCrowd(data);
+                }
             } catch (err) {
                 console.error("Sync error:", err);
             }
@@ -225,11 +239,11 @@ export default function GenericSectorMap({ points, crowdRoad = [], safeRoad = []
         <div className="relative w-full h-screen bg-gray-100">
             <style jsx global>{`
                 .crowd-line-glow {
-                    filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8));
+                    filter: drop-shadow(0 0 8px rgba(244, 63, 94, 0.8));
                     animation: crowd-pulse 2s infinite ease-in-out;
                 }
                 .safe-line-glow {
-                    filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.8));
+                    filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.8));
                 }
                 .bot-glow {
                     filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.8));
@@ -249,6 +263,18 @@ export default function GenericSectorMap({ points, crowdRoad = [], safeRoad = []
                     box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.4);
                 }
                 .bot-label { background: transparent !important; border: none !important; box-shadow: none !important; }
+                .sector-tooltip {
+                    background: rgba(0,0,0,0.8) !important;
+                    border: 1px solid rgba(255,255,255,0.2) !important;
+                    color: white !important;
+                    border-radius: 8px !important;
+                    padding: 4px 8px !important;
+                    font-weight: 900 !important;
+                    text-transform: uppercase !important;
+                    font-size: 10px !important;
+                    letter-spacing: 0.05em !important;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+                }
             `}</style>
 
             {/* Simulation Controls */}
@@ -268,6 +294,21 @@ export default function GenericSectorMap({ points, crowdRoad = [], safeRoad = []
                     )}
                 </div>
             )}
+
+            {/* Density Legend */}
+            <div className="absolute top-6 right-20 z-[1000] bg-white/90 backdrop-blur-md p-4 rounded-3xl shadow-xl border border-white/20 flex flex-col gap-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.1em] text-gray-500 mb-1 border-b pb-2">Crowd Density</p>
+                {Object.entries(crowdLevels).filter(([key]) => key !== 'null').reverse().map(([key, value]) => (
+                    <div key={key} className="flex items-center gap-3">
+                        <div className="w-4 h-4 rounded-full shadow-inner" style={{ backgroundColor: value.fillColor }}></div>
+                        <span className="text-[11px] font-bold text-gray-700">{value.label}</span>
+                    </div>
+                ))}
+                <div className="flex items-center gap-3 opacity-60">
+                    <div className="w-4 h-4 rounded-full bg-slate-400 shadow-inner"></div>
+                    <span className="text-[11px] font-bold text-gray-700">Clear / No Data</span>
+                </div>
+            </div>
 
             <MapContainer
                 center={mapCenter}
@@ -291,7 +332,7 @@ export default function GenericSectorMap({ points, crowdRoad = [], safeRoad = []
                         <Polyline
                             positions={crowdRoad}
                             pathOptions={{
-                                color: "#ef4444",
+                                color: "#f43f5e",
                                 weight: 10,
                                 opacity: 0.8,
                                 lineCap: 'round',
@@ -322,7 +363,7 @@ export default function GenericSectorMap({ points, crowdRoad = [], safeRoad = []
                         <Polyline
                             positions={safeRoad}
                             pathOptions={{
-                                color: "#22c55e",
+                                color: "#10b981",
                                 weight: 8,
                                 opacity: 0.8,
                                 lineCap: 'round',
@@ -361,7 +402,7 @@ export default function GenericSectorMap({ points, crowdRoad = [], safeRoad = []
                         }}
                     >
                         <Tooltip permanent direction="top" className="bot-label">
-                            <div className="bg-blue-600 text-white px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest">SIM BOT</div>
+                            <div className="bg-blue-600 text-white px-1.5 py-2 rounded text-[8px] font-black uppercase tracking-widest">User</div>
                         </Tooltip>
                     </Circle>
                 )}
@@ -379,14 +420,21 @@ export default function GenericSectorMap({ points, crowdRoad = [], safeRoad = []
                                 color: isSelected ? "#3b82f6" : "white",
                                 weight: isSelected ? 3 : 1,
                                 fillColor: style.fillColor,
-                                fillOpacity: isSelected ? 0.7 : 0.45,
+                                fillOpacity: isSelected ? 0.75 : 0.5,
                             }}
                             eventHandlers={{
                                 click: (e) => {
                                     handleSectionClick(section.id);
                                 },
                             }}
-                        />
+                        >
+                            <Tooltip direction="center" className="sector-tooltip">
+                                <div className="flex flex-col items-center">
+                                    <span>{section.name}</span>
+                                    <span style={{ color: style.fillColor === "#94a3b8" ? "white" : style.fillColor }}>{style.label}</span>
+                                </div>
+                            </Tooltip>
+                        </Polygon>
                     );
                 })}
             </MapContainer>
@@ -445,7 +493,7 @@ export default function GenericSectorMap({ points, crowdRoad = [], safeRoad = []
                                             detectedLevel === 2 ? 'bg-yellow-100 text-yellow-600' :
                                                 'bg-red-100 text-red-600'
                                             }`}>
-                                            {crowdLevels[detectedLevel].label} Density
+                                            {crowdLevels[detectedLevel].label}
                                         </span>
                                     </div>
 
@@ -466,12 +514,6 @@ export default function GenericSectorMap({ points, crowdRoad = [], safeRoad = []
                 </div>
             )}
 
-            {!selectedSectionId && (
-                <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-[1000] bg-white px-6 py-3 rounded-full shadow-xl border border-gray-100 flex items-center gap-3 animate-bounce text-center">
-                    <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse"></div>
-                    <p className="text-sm font-bold text-gray-800 tracking-tight">Tap any square for {namePrefix} AI check</p>
-                </div>
-            )}
 
             <a href="/location" className="absolute top-6 right-6 z-[1000] bg-white p-3 rounded-full shadow-lg border border-gray-100 font-bold text-blue-600 hover:scale-105 transition-transform">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -479,3 +521,4 @@ export default function GenericSectorMap({ points, crowdRoad = [], safeRoad = []
         </div>
     );
 }
+

@@ -226,20 +226,42 @@ export default function SimulationTracker() {
                 <Polygon positions={testPolygon} pathOptions={{ color: "blue", weight: 2, fillOpacity: 0.05, dashArray: "5, 10" }} />
 
                 {/* Grid cells */}
-                {(gridCrowd.length > 0 ? gridCrowd : Array.from({ length: 441 }).map((_, i) => {
-                    const r = Math.floor(i / 21) - 10;
-                    const c = (i % 21) - 10;
+                {(() => {
+                    // Always generate 7x7 grid around user
                     const myRLat = Math.floor(pos.lat / LAT_STEP);
                     const myRLng = Math.floor(pos.lng / LNG_STEP);
-                    const rid = (myRLat + r);
-                    const cid = (myRLng + c);
-                    return {
-                        id: `${rid},${cid}`,
-                        lat: rid * LAT_STEP,
-                        lng: cid * LNG_STEP,
-                        count: 0
-                    };
-                })).map((cell, idx) => {
+
+                    // Create base grid
+                    const baseGrid = Array.from({ length: 49 }).map((_, i) => {
+                        const r = Math.floor(i / 7) - 3;
+                        const c = (i % 7) - 3;
+                        const rid = (myRLat + r);
+                        const cid = (myRLng + c);
+                        const cellId = `${rid},${cid}`;
+
+                        // Find matching cell from API data
+                        const apiCell = gridCrowd.find(gc => gc.id === cellId);
+
+                        // Create a larger red zone (5 cells) to the right and above the user
+                        // Pattern: forms an L-shape obstacle
+                        const isRedZone = (
+                            (r === 0 && c === 1) ||  // Right of user
+                            (r === 0 && c === 2) ||  // 2 cells right
+                            (r === -1 && c === 1) || // Above-right
+                            (r === -1 && c === 2) || // Above-right diagonal
+                            (r === 1 && c === 1)     // Below-right
+                        );
+
+                        return {
+                            id: cellId,
+                            lat: rid * LAT_STEP,
+                            lng: cid * LNG_STEP,
+                            count: isRedZone ? (crowdLimit + 5) : (apiCell ? apiCell.count : 0)
+                        };
+                    });
+
+                    return baseGrid;
+                })().map((cell, idx) => {
                     const isMe = cell.id === myCell;
                     const isRec = recommendedCell && cell.id === recommendedCell.id;
                     const isSel = manualTarget && cell.id === manualTarget.cellId;
