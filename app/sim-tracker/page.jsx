@@ -197,30 +197,7 @@ export default function SimulationTracker() {
                 </div>
             </div>
 
-            {/* Rerouting Overlay */}
-            {(recommendedCell || manualTarget) && (
-                <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-[1000] w-[90%] max-w-sm pointer-events-none">
-                    <div className="bg-blue-600 p-6 rounded-[2.5rem] shadow-3xl border border-blue-400/50 animate-in slide-in-from-bottom-5 pointer-events-auto text-white">
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="bg-white/20 p-3 rounded-2xl">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
-                            </div>
-                            <div>
-                                <h3 className="font-black uppercase tracking-tighter text-lg leading-tight">
-                                </h3>
-                                <p className="text-xs text-blue-100 opacity-70">
-                                </p>
-                            </div>
-                        </div>
-                        <div className="bg-black/20 rounded-2xl p-3 flex justify-between items-center">
-                            <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">Destination</span>
-                            <span className="font-mono text-xs font-black bg-white text-blue-600 px-3 py-1 rounded-lg">
-                                {manualTarget ? `CELL ${manualTarget.cellId}` : `AUTO SAFE ZONE`}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            )}
+           
 
             <MapContainer center={[pos.lat, pos.lng]} zoom={18} className="h-full w-full z-0" zoomControl={false}>
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
