@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Camera, Activity, AlertCircle, Maximize2, Shield, Eye } from "lucide-react";
 
 const CCTV_CAMS = [
-    { id: "A", name: "Ghat Main Entrance", src: "/videos/a.mp4", density: 30, status: "Critical" },
+    { id: "A", name: "Ghat Main Entrance", src: "/videos/a.mp4", density: 30, status: "Low" },
     { id: "B", name: "VIP Parking Zone", src: "/videos/b.mp4", density: 45, status: "Fluid" },
     { id: "C", name: "Bridge Crossing West", src: "/videos/c.mp4", density: 80, status: "Open" },
     { id: "D", name: "Food Court Plateau", src: "/videos/d.mp4", density: 60, status: "Dense" }
