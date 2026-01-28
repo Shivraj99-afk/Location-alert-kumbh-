@@ -33,7 +33,7 @@ export default function LandingPage() {
         <div className="hidden md:flex items-center gap-6">
           <Link href="/" className="text-sm font-bold text-orange-600 px-4 py-2 bg-orange-50 rounded-full">Home</Link>
           <Link href="/family" className="text-sm font-bold text-gray-500 hover:text-orange-600">Family Radar</Link>
-          <Link href="/business-map" className="text-sm font-bold text-gray-500 hover:text-orange-600">Businesses</Link>
+          <Link href="/pricing" className="text-sm font-bold text-gray-500 hover:text-orange-600">Businesses</Link>
           <Link href="/location" className="text-sm font-bold text-gray-500 hover:text-orange-600">Live Map</Link>
         </div>
       </nav>

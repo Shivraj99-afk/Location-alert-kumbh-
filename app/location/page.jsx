@@ -142,16 +142,27 @@ export default function LocationPage() {
     const cBase = Math.floor(position.lng / LNG_STEP);
     const grid = [];
 
-    for (let dr = -12; dr <= 12; dr++) {
-      for (let dc = -12; dc <= 12; dc++) {
+    for (let dr = -3; dr <= 3; dr++) {
+      for (let dc = -3; dc <= 3; dc++) {
         const r = rBase + dr;
         const c = cBase + dc;
         const id = `${r},${c}`;
+
+        // Create simulated red zones (crowded areas) near user for testing
+        // Pattern: L-shape obstacle to the right and above user
+        const isRedZone = (
+          (dr === 0 && dc === 1) ||  // Right of user
+          (dr === 0 && dc === 2) ||  // 2 cells right
+          (dr === -1 && dc === 1) || // Above-right
+          (dr === -1 && dc === 2) || // Above-right diagonal
+          (dr === 1 && dc === 1)     // Below-right
+        );
+
         grid.push({
           id,
           lat: r * LAT_STEP,
           lng: c * LNG_STEP,
-          count: density[id] || 0,
+          count: isRedZone ? (crowdLimit + 5) : (density[id] || 0),
           isMe: id === myCell
         });
       }
@@ -221,6 +232,11 @@ export default function LocationPage() {
   const isSectorCrowded = currentCellStatus.isCrowded;
 
   const handleCellClick = (cell) => {
+    // Prevent clicking on red zones (crowded cells)
+    if (cell.count >= crowdLimit) {
+      return;
+    }
+
     const target = {
       lat: cell.lat + LAT_STEP / 2,
       lng: cell.lng + LNG_STEP / 2,

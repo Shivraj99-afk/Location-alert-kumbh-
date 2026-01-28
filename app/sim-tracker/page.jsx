@@ -176,20 +176,20 @@ export default function SimulationTracker() {
                     </div>
                 </div>
 
-                <div className="flex gap-2 pointer-events-auto">
+                <div className="flex justify-between items-center gap-2 pointer-events-auto">
                     <button
                         onClick={() => {
                             setForceSafePath(!forceSafePath);
                             if (!forceSafePath) setManualTarget(null);
                         }}
-                        className={`flex-1 py-3 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all shadow-xl ${forceSafePath ? 'bg-red-500 text-white' : 'bg-white text-black hover:bg-zinc-200'}`}
+                        className={`px-4 py-2 rounded-xl font-bold text-[10px] uppercase tracking-wide transition-all shadow-md ${forceSafePath ? 'bg-red-500 text-white' : 'bg-white text-black hover:bg-zinc-200'}`}
                     >
-                        {forceSafePath ? '🧭 AUTO RE-ROUTE: ON' : '🧭 TRIGGER SAFE PATH'}
+                        {forceSafePath ? '🧭 ON' : '🧭 SAFE PATH'}
                     </button>
                     {manualTarget && (
                         <button
                             onClick={clearTarget}
-                            className="w-12 h-12 bg-zinc-800 text-white rounded-2xl flex items-center justify-center shadow-xl hover:bg-zinc-700"
+                            className="w-10 h-10 bg-zinc-800 text-white rounded-xl flex items-center justify-center shadow-md hover:bg-zinc-700 text-sm"
                         >
                             ✕
                         </button>
